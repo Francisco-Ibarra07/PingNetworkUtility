@@ -1,0 +1,71 @@
+
+Solution found (combine these two together):
+- https://www.cs.rpi.edu/~moorthy/Courses/os98/Pgms/socket.html
+- https://stackoverflow.com/questions/9688899/sending-icmp-packets-in-a-c-program
+
+
+Solution steps:
+	From link #1
+	- Use hostent getHostByName() to check if host exists
+	- If it does, get info and place it in sockaddr_in variable
+
+	From link #2:
+	- Create a datagram buffer with iphdr and icmp header
+	- use sendto() to send over the data
+
+
+Once done, do the other steps below
+
+Steps to complete project:
+
+	1) Make a C file that accepts a hostname or IP in the first argument
+
+	2) Send ICMP 8 ('echo request') in an infinite loop to the passed in argument
+		- ICMP packet goes in the 'data' part of a the IP header
+
+	3) Read all ICMP 0 ('echo reply')
+	- Calculate Round Trip Time (RTT) from this reply
+	- Print out any packet loss 
+
+	4) Write unit test cases and hand those in too
+
+	5) Do some of the extra credit features?
+		- do signal sigint handler
+
+Useful links:
+	What is icmp
+	- https://www.comparitech.com/net-admin/what-is-icmp/
+
+	Useful reference:
+	- https://stackoverflow.com/questions/9688899/sending-icmp-packets-in-a-c-program
+
+	Coding raw sockets on linux:
+	- https://www.binarytides.com/raw-sockets-c-code-linux/
+
+	Ping source code:
+	- https://github.com/torvalds/linux/blob/master/net/ipv4/ping.c
+
+	ip.h source code:
+	- https://unix.superglobalmegacorp.com/Net2/newsrc/netinet/ip.h.html
+
+	Ping Flood:
+	- https://www.cloudflare.com/learning/ddos/ping-icmp-flood-ddos-attack/
+
+	IP Datagram structure:
+	- IP datagram means the structure that we saw in lecture
+	- https://www.inetdaemon.com/tutorials/internet/ip/datagram_structure.shtml
+
+
+
+Video notes:
+- 1:07:30
+	- destination host unreachable: 
+		- You have recieved it here and ip addresses but unreachable
+		- if you get this then that is how you can printf an error message
+- 1:10:20
+	- ICMP is made up of:
+		Type
+		Code
+		First 8 bytes of IP datagram causing the error
+
+	- ICMP Format
