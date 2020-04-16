@@ -42,7 +42,6 @@ unsigned short cksum(unsigned short *addr, int len) {
 // TODO: Implement check for argv to get dst hostname or ip
 // TODO: Maybe switch to ip instead of iphdr
 int main(int argc, char *argv[]) {
-  printf("Starting\n");
 
   // Make sure file is ran with 'sudo'
   if (getuid() != 0) {
@@ -50,6 +49,25 @@ int main(int argc, char *argv[]) {
     exit(EXIT_FAILURE);
   }
 
+  // Make sure user inputted a hostname or ip address
+  if (argc != 2) {
+    printf("\nUsage: sudo %s <hostname or ip address>", argv[0]);
+    exit(1);
+  }
+
+  printf("Starting\n");
+
+  // Get destination IP address
+  char *user_input = argv[1];
+  struct hostent *dst_hostent = gethostbyname(user_input);
+  if (dst_hostent == NULL) {
+    perror("Error on gethostbyname()");
+    exit(1);
+  }
+  struct in_addr *dst_addr = (struct in_addr*) dst_hostent->h_addr_list[0];
+  char* dst_ip_str = inet_ntoa(*dst_addr); 
+  printf("IP for host %s: %s\n", user_input, dst_ip_str);
+  
   // User input stuff
   char *TEMP_SRC_IP = "192.168.0.6"; // my temp ip
   char *TEMP_TEST_IP = "104.17.176.85"; // cloudflare.com
