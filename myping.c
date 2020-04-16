@@ -57,6 +57,24 @@ int main(int argc, char *argv[]) {
 
   printf("Starting\n");
 
+  // Get source IP address
+  char src_hostname[32];
+  struct hostent *src_hostent; 
+  if(gethostname(src_hostname, sizeof(src_hostname)) < 0) {
+    perror("Error on gethostname()");
+    exit(1);
+  }
+  src_hostent = gethostbyname(src_hostname);
+  if (src_hostent == NULL) {
+    perror("Error on gethostbyname()");
+    exit(1);
+  }
+  struct in_addr *src_addr = (struct in_addr*) src_hostent->h_addr_list[0];
+  char* src_ip_str = inet_ntoa(*src_addr);
+  printf("Source hostname: %s\n", src_hostname);
+  printf("Source IP address: %s\n", src_ip_str);
+  puts("");
+
   // Get destination IP address
   char *user_input = argv[1];
   struct hostent *dst_hostent = gethostbyname(user_input);
