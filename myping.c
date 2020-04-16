@@ -84,44 +84,34 @@ int main(int argc, char *argv[]) {
   }
   struct in_addr *dst_addr = (struct in_addr*) dst_hostent->h_addr_list[0];
   char* dst_ip_str = inet_ntoa(*dst_addr); 
-  printf("IP for host %s: %s\n", user_input, dst_ip_str);
+  printf("IP address for host %s: %s\n", user_input, dst_ip_str);
+  puts("");
   
-  // User input stuff
-  char *TEMP_SRC_IP = "192.168.0.6"; // my temp ip
-  char *TEMP_TEST_IP = "104.17.176.85"; // cloudflare.com
-  char *TEMP_TEST_HOSTNAME = "google.com";
-
-  // Socket/Host stuff :p
-  int socket_fd;
-  struct sockaddr_in server_sock_addr;
-  struct hostent *server_hostent;
-  struct hostent *source_hostent;
-
-  // Network layer stuff :p
-  char src_ip[32];
-  char dst_ip[32];
-  char datagram[20];
-  memset(datagram, 0, sizeof(datagram));
-  char recieving_buffer[500];
-  struct iphdr *ip_header = (struct iphdr*) datagram;
-  struct icmphdr *icmp_header = (struct icmphdr*) (ip_header + 1);
-
-  server_sock_addr.sin_addr = (*(struct in_addr*) server_hostent->h_addr_list[0]);
-  server_sock_addr.sin_family = AF_INET;
-
   // Create our socket and setup our options
-  socket_fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+  int one = 1;
+  struct sockaddr_in server_sock_addr;
+  server_sock_addr.sin_addr = *dst_addr;
+  server_sock_addr.sin_family = AF_INET;
+  int socket_fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
   if (socket_fd < 0) {
     perror("Error on socket()");
     exit(1);
   }
-  int one = 1;
   if(setsockopt(socket_fd, IPPROTO_IP, IP_HDRINCL, &one, sizeof(one)) < 0) {
     perror("Error on setsockopt()");
     exit(1);
   }
 
+  // User input stuff
+  char *TEMP_SRC_IP = "192.168.0.6"; // my temp ip
+  char *TEMP_TEST_IP = "104.17.176.85"; // cloudflare.com
+  char *TEMP_TEST_HOSTNAME = "google.com";
+
   // Setup our IP Header
+  char datagram[20];
+  memset(datagram, 0, sizeof(datagram));
+  struct iphdr *ip_header = (struct iphdr*) datagram;
+  struct icmphdr *icmp_header = (struct icmphdr*) (ip_header + 1);
   ip_header->ihl = 5;
   ip_header->version = 4;
   ip_header->tos = 0;
