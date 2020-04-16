@@ -102,23 +102,9 @@ int main(int argc, char *argv[]) {
   char dst_ip[32];
   char datagram[20];
   memset(datagram, 0, sizeof(datagram));
-  char src_hostname[50];
   char recieving_buffer[500];
   struct iphdr *ip_header = (struct iphdr*) datagram;
   struct icmphdr *icmp_header = (struct icmphdr*) (ip_header + 1);
-
-  // Get src ip
-  // Use getsockname instead of get src_ip this way?
-  // All this just to get ip_header->saddr
-  if(gethostname(src_hostname, sizeof(src_hostname))) {
-    perror("Error on gethostname");
-    exit(1);
-  }
-  source_hostent = gethostbyname(src_hostname);
-  if (source_hostent == NULL) {
-    perror("Error on gethostbyname()");
-    exit(1);
-  }
 
   // Get destination ip address
   server_hostent = gethostbyname(TEMP_TEST_HOSTNAME);
