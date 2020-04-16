@@ -102,11 +102,6 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
-  // User input stuff
-  char *TEMP_SRC_IP = "192.168.0.6"; // my temp ip
-  char *TEMP_TEST_IP = "104.17.176.85"; // cloudflare.com
-  char *TEMP_TEST_HOSTNAME = "google.com";
-
   // Setup our IP Header
   char datagram[20];
   uint16_t datagram_size = sizeof(datagram);
