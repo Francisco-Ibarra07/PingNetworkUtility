@@ -111,7 +111,6 @@ int main(int argc, char *argv[]) {
   char datagram[20];
   memset(datagram, 0, sizeof(datagram));
   struct iphdr *ip_header = (struct iphdr*) datagram;
-  struct icmphdr *icmp_header = (struct icmphdr*) (ip_header + 1);
   ip_header->ihl = 5;
   ip_header->version = 4;
   ip_header->tos = 0;
@@ -125,13 +124,11 @@ int main(int argc, char *argv[]) {
   ip_header->daddr = inet_addr(TEMP_TEST_IP); // (*(struct in_addr*) server_hostent->h_addr);
 
   // Setup our ICMP header
+  struct icmphdr *icmp_header = (struct icmphdr*) (ip_header + 1);
   icmp_header->type = ICMP_ECHO;
   icmp_header->code = 0;
   icmp_header->un.echo.id = 130;
   icmp_header->un.echo.sequence = 1;
-
-  printf("Size of iph: %lu\n", sizeof(ip_header));
-  printf("Size of icmphdr: %lu\n", sizeof(icmp_header));
 
   // Send out our data
   struct sockaddr *dst = (struct sockaddr*)&server_sock_addr;
