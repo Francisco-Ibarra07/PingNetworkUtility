@@ -86,21 +86,6 @@ int main(int argc, char *argv[]) {
   char* dst_ip_str = inet_ntoa(*dst_addr); 
   printf("IP address for host %s: %s\n", user_input, dst_ip_str);
   puts("");
-  
-  // Create our socket and setup our options
-  int one = 1;
-  struct sockaddr_in server_sock_addr;
-  server_sock_addr.sin_addr = *dst_addr;
-  server_sock_addr.sin_family = AF_INET;
-  int socket_fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
-  if (socket_fd < 0) {
-    perror("Error on socket()");
-    exit(1);
-  }
-  if(setsockopt(socket_fd, IPPROTO_IP, IP_HDRINCL, &one, sizeof(one)) < 0) {
-    perror("Error on setsockopt()");
-    exit(1);
-  }
 
   // Setup our IP Header
   char datagram[20];
@@ -125,6 +110,21 @@ int main(int argc, char *argv[]) {
   icmp_header->icmp_code = 0;
   icmp_header->icmp_id = 130;
   icmp_header->icmp_seq = 1;
+  
+  // Create our socket and setup our options
+  int one = 1;
+  struct sockaddr_in server_sock_addr;
+  server_sock_addr.sin_addr = *dst_addr;
+  server_sock_addr.sin_family = AF_INET;
+  int socket_fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+  if (socket_fd < 0) {
+    perror("Error on socket()");
+    exit(1);
+  }
+  if(setsockopt(socket_fd, IPPROTO_IP, IP_HDRINCL, &one, sizeof(one)) < 0) {
+    perror("Error on setsockopt()");
+    exit(1);
+  }
 
   // Send out our data
   struct sockaddr *dst = (struct sockaddr*)&server_sock_addr;
