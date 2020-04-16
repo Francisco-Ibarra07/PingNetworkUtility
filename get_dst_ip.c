@@ -34,5 +34,10 @@ int main(int argc, char** argv) {
   char* IP = inet_ntoa(*dst_addr);
   
   printf("IP for host %s: %s\n", input, IP);
+
+  int length = -1;
+  while (dst_hostent->h_addr_list[++length] != NULL) { /* do nothing */}
+  printf("Size of address list: %d\n", length);
+
   printf("End\n");
 }
