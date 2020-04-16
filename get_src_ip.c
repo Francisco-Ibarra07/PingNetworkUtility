@@ -33,9 +33,9 @@ int main() {
   
   // IP string and using inet_ntoa using h_addr and casting to struct in_addr*
   struct in_addr *host_addr = (struct in_addr*) src_hostent->h_addr_list[0];
-  char* str = inet_ntoa(*host_addr);
+  char* IP = inet_ntoa(*host_addr);
   
-  printf("Temp: %s\n", str);
+  printf("IP: %s\n", IP);
   printf("End\n");
 }
 
