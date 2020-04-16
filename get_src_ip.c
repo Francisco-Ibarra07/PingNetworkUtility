@@ -17,24 +17,25 @@ int main() {
   char src_hostname[32];
   struct hostent *src_hostent; 
 
+  // Get localhost name and store it in a char array
   if(gethostname(src_hostname, sizeof(src_hostname)) < 0) {
     perror("Error on gethostname()");
     exit(1);
   }
   printf("Source hostname: %s\n", src_hostname);
 
+  // Get host information and store in struct hostent
   src_hostent = gethostbyname(src_hostname);
   if (src_hostent == NULL) {
     perror("Error on gethostbyname()");
     exit(1);
   }
   
-  char *temp = src_hostent->h_aliases[0];
-  printf("Temp: %s\n", temp);
+  // IP string and using inet_ntoa using h_addr and casting to struct in_addr*
+  struct in_addr *host_addr = (struct in_addr*) src_hostent->h_addr_list[0];
+  char* str = inet_ntoa(*host_addr);
   
-  printf("h length: %d\n", src_hostent->h_length);
-  printf("h type: %d\n", src_hostent->h_addrtype);
-  printf("h name: %s\n", src_hostent->h_name);
+  printf("Temp: %s\n", str);
   printf("End\n");
 }
 
