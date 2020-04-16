@@ -106,12 +106,6 @@ int main(int argc, char *argv[]) {
   struct iphdr *ip_header = (struct iphdr*) datagram;
   struct icmphdr *icmp_header = (struct icmphdr*) (ip_header + 1);
 
-  // Get destination ip address
-  server_hostent = gethostbyname(TEMP_TEST_HOSTNAME);
-  if (server_hostent == NULL) {
-    perror("Hostname/IP does not exist");
-    exit(1);
-  }
   server_sock_addr.sin_addr = (*(struct in_addr*) server_hostent->h_addr_list[0]);
   server_sock_addr.sin_family = AF_INET;
 
