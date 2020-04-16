@@ -109,19 +109,20 @@ int main(int argc, char *argv[]) {
 
   // Setup our IP Header
   char datagram[20];
+  uint16_t datagram_size = sizeof(datagram);
   memset(datagram, 0, sizeof(datagram));
-  struct iphdr *ip_header = (struct iphdr*) datagram;
-  ip_header->ihl = 5;
-  ip_header->version = 4;
-  ip_header->tos = 0;
-  ip_header->tot_len = htons(sizeof(datagram));
-  ip_header->id = htons(321);
-  ip_header->frag_off = htons(0);
-  ip_header->ttl = 64;
-  ip_header->protocol = IPPROTO_ICMP;
-  ip_header->check = cksum((unsigned short*)datagram, ip_header->ihl);
-  ip_header->saddr = inet_addr(TEMP_SRC_IP);  //(*(struct in_addr*) source_hostent->h_addr);
-  ip_header->daddr = inet_addr(TEMP_TEST_IP); // (*(struct in_addr*) server_hostent->h_addr);
+  struct ip *ip_header = (struct ip*) datagram;
+  ip_header->ip_hl = 5;                       /* header length */
+  ip_header->ip_v = 4;                        /* IP version */
+  ip_header->ip_tos = 0;                      /* type of service */
+  ip_header->ip_len = htons(datagram_size);   /* total length */
+  ip_header->ip_id = htons(321);              /* IP id */
+  ip_header->ip_off = htons(0);               /* fragment offset field */
+  ip_header->ip_ttl = 64;                     /* time to live */
+  ip_header->ip_p = IPPROTO_ICMP;             /* protocol */
+  ip_header->ip_sum = 0;                      /* checksum */
+  ip_header->ip_src = *src_addr;              /* src ip address */
+  ip_header->ip_dst = *dst_addr;              /* dst ip address */
 
   // Setup our ICMP header
   struct icmphdr *icmp_header = (struct icmphdr*) (ip_header + 1);
