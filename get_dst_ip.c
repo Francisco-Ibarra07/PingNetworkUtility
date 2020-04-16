@@ -30,8 +30,8 @@ int main(int argc, char** argv) {
   }
   
   // IP string and using inet_ntoa using h_addr and casting to struct in_addr*
-  struct in_addr *host_addr = (struct in_addr*) dst_hostent->h_addr_list[0];
-  char* IP = inet_ntoa(*host_addr);
+  struct in_addr *dst_addr = (struct in_addr*) dst_hostent->h_addr_list[0];
+  char* IP = inet_ntoa(*dst_addr);
   
   printf("IP for host %s: %s\n", input, IP);
   printf("End\n");
