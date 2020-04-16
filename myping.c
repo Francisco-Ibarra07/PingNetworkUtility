@@ -55,7 +55,7 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
-  printf("Starting\n");
+  printf("Starting\n\n");
 
   // Get source IP address
   char src_hostname[32];
@@ -125,11 +125,11 @@ int main(int argc, char *argv[]) {
   ip_header->ip_dst = *dst_addr;              /* dst ip address */
 
   // Setup our ICMP header
-  struct icmphdr *icmp_header = (struct icmphdr*) (ip_header + 1);
-  icmp_header->type = ICMP_ECHO;
-  icmp_header->code = 0;
-  icmp_header->un.echo.id = 130;
-  icmp_header->un.echo.sequence = 1;
+  struct icmp *icmp_header = (struct icmp*) (ip_header + 1);
+  icmp_header->icmp_type = ICMP_ECHO;
+  icmp_header->icmp_code = 0;
+  icmp_header->icmp_id = 130;
+  icmp_header->icmp_seq = 1;
 
   // Send out our data
   struct sockaddr *dst = (struct sockaddr*)&server_sock_addr;
@@ -142,5 +142,5 @@ int main(int argc, char *argv[]) {
     printf("Packet sent. sent: %d\n", bytes_sent);
   }
 
-  printf("End");
+  printf("End\n");
 }
