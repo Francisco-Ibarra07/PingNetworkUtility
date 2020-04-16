@@ -90,7 +90,7 @@ int main(int argc, char *argv[]) {
     perror("Hostname/IP does not exist");
     exit(1);
   }
-  server_sock_addr.sin_addr = (*(struct in_addr*) server_hostent->h_addr);
+  server_sock_addr.sin_addr = (*(struct in_addr*) server_hostent->h_addr_list[0]);
   server_sock_addr.sin_family = AF_INET;
 
   // Create our socket and setup our options
