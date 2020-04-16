@@ -113,9 +113,10 @@ int main(int argc, char *argv[]) {
   
   // Create our socket and setup our options
   int one = 1;
-  struct sockaddr_in server_sock_addr;
-  server_sock_addr.sin_addr = *dst_addr;
-  server_sock_addr.sin_family = AF_INET;
+  struct sockaddr_in server_addr;
+  memset(&server_addr, 0, sizeof(server_addr));
+  server_addr.sin_addr = *dst_addr;
+  server_addr.sin_family = AF_INET;
   int socket_fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
   if (socket_fd < 0) {
     perror("Error on socket()");
@@ -127,9 +128,15 @@ int main(int argc, char *argv[]) {
   }
 
   // Send out our data
-  struct sockaddr *dst = (struct sockaddr*)&server_sock_addr;
-  int dst_size = sizeof(server_sock_addr);
-  int bytes_sent = sendto(socket_fd, datagram, sizeof(datagram), 0, dst, dst_size);
+  int bytes_sent = sendto(
+    socket_fd, 
+    datagram, 
+    sizeof(datagram), 
+    0, 
+    (struct sockaddr*) &server_addr, // Need to cast sockaddr_in to sockaddr*
+    sizeof(server_addr)
+   );
+
   if (bytes_sent < 0) {
     perror("Error on sendto()");
   }
