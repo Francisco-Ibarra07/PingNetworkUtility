@@ -10,37 +10,45 @@
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
 
+#define IP_HEADER_LENGTH 20
+#define ICMP_HEADER_LENGTH 8
+
 /* One's Complement checksum algorithm */
-unsigned short cksum(unsigned short *addr, int len) {
-    int nleft = len;
-    int sum = 0;
-    unsigned short *w = addr;
-    unsigned short answer = 0;
+// Computing the internet checksum (RFC 1071).
+// Note that the internet checksum does not preclude collisions.
+uint16_t
+checksum (uint16_t *addr, int len)
+{
+  int count = len;
+  register uint32_t sum = 0;
+  uint16_t answer = 0;
 
-    while (nleft > 1)
-    {
-      sum += *w++;
-      nleft -= 2;
-    }
+  // Sum up 2-byte values until none or only one byte left.
+  while (count > 1) {
+    sum += *(addr++);
+    count -= 2;
+  }
 
-    if (nleft == 1)
-    {
-      *(unsigned char *)(&answer) = *(unsigned char *)w;
-      sum += answer;
-    }
+  // Add left-over byte, if any.
+  if (count > 0) {
+    sum += *(uint8_t *) addr;
+  }
 
-    sum = (sum >> 16) + (sum & 0xffff);
-    sum += (sum >> 16);
-    answer = ~sum;
+  // Fold 32-bit sum into 16 bits; we lose information by doing this,
+  // increasing the chances of a collision.
+  // sum = (lower 16 bits) + (upper 16 bits shifted right 16 bits)
+  while (sum >> 16) {
+    sum = (sum & 0xffff) + (sum >> 16);
+  }
 
-    return (answer);
+  // Checksum is one's compliment of sum.
+  answer = ~sum;
+
+  return (answer);
 }
 
 // TODO: Checksum is not correct
-// TODO: icmp messages stopped showing up? Needs a reboot maybe
 // TODO: Change way that you get source IP
-// TODO: Implement check for argv to get dst hostname or ip
-// TODO: Maybe switch to ip instead of iphdr
 int main(int argc, char *argv[]) {
 
   // Make sure file is ran with 'sudo'
@@ -88,6 +96,7 @@ int main(int argc, char *argv[]) {
   puts("");
 
   // Setup our IP Header
+  uint8_t *data_to_send = (uint8_t*) malloc(IP_MAXPACKET * sizeof(uint8_t));
   char datagram[20];
   uint16_t datagram_size = sizeof(datagram);
   memset(datagram, 0, sizeof(datagram));
@@ -96,7 +105,7 @@ int main(int argc, char *argv[]) {
   ip_header->ip_v = 4;                        /* IP version */
   ip_header->ip_tos = 0;                      /* type of service */
   ip_header->ip_len = htons(datagram_size);   /* total length */
-  ip_header->ip_id = htons(321);              /* IP id */
+  ip_header->ip_id = htons(getpid());              /* IP id */
   ip_header->ip_off = htons(0);               /* fragment offset field */
   ip_header->ip_ttl = 64;                     /* time to live */
   ip_header->ip_p = IPPROTO_ICMP;             /* protocol */
