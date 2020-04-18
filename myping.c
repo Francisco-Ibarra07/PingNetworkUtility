@@ -137,12 +137,24 @@ int main(int argc, char *argv[]) {
   ip_header.ip_sum = checksum((uint16_t*) &ip_header, IP_HEADER_LENGTH); /* checksum */
 
   // Setup our ICMP header
-  struct icmp *icmp_header = (struct icmp*) (ip_header + 1);
-  icmp_header->icmp_type = ICMP_ECHO;
-  icmp_header->icmp_code = 0;
-  icmp_header->icmp_id = 130;
-  icmp_header->icmp_seq = 1;
-  
+  struct icmp icmp_header;
+  icmp_header.icmp_type = ICMP_ECHO;
+  icmp_header.icmp_code = 0;
+  icmp_header.icmp_id = htons(getpid());
+  icmp_header.icmp_seq = 0;
+  icmp_header.icmp_cksum = 0;
+
+
+  // Prepare packet to send
+  uint8_t *packet = (uint8_t*) malloc(IP_MAXPACKET * sizeof(uint8_t));
+  memcpy(packet, &ip_header, IP_HEADER_LENGTH); // Copy IP header first
+  memcpy((packet + IP_HEADER_LENGTH), &icmp_header, ICMP_HEADER_LENGTH); // Copy ICMP header AFTER IP header
+  memcpy((packet + IP_HEADER_LENGTH + ICMP_HEADER_LENGTH), data, icmp_data_length);
+
+  // Calculate ICMP header checksum
+  icmp_header.icmp_cksum = checksum ((uint16_t *) (packet + IP_HEADER_LENGTH), ICMP_HEADER_LENGTH + icmp_data_length);
+  memcpy ((packet + IP_HEADER_LENGTH), &icmp_header, ICMP_HEADER_LENGTH);
+
   // Create our socket and setup our options
   int one = 1;
   struct sockaddr_in server_addr;
