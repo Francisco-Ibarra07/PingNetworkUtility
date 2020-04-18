@@ -95,6 +95,22 @@ int main(int argc, char *argv[]) {
   printf("IP address for host %s: %s\n", user_input, dst_ip_str);
   puts("");
 
+  // Initialize icmp data to send
+  uint8_t *data;
+  data = (uint8_t*) malloc(IP_MAXPACKET * sizeof(uint8_t));
+  if (data != NULL) {
+    memset(data, 0, IP_MAXPACKET * sizeof(uint8_t));
+  }
+  else {
+    perror("Error on icmp_data malloc()");
+    exit(1);
+  }
+  int icmp_data_length = 4;
+  data[0] = 'T';
+  data[1] = 'E';
+  data[2] = 'S';
+  data[3] = 'T';
+
   // Setup our IP Header
   uint8_t *data_to_send = (uint8_t*) malloc(IP_MAXPACKET * sizeof(uint8_t));
   char datagram[20];
