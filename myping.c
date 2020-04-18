@@ -112,22 +112,29 @@ int main(int argc, char *argv[]) {
   data[3] = 'T';
 
   // Setup our IP Header
-  uint8_t *data_to_send = (uint8_t*) malloc(IP_MAXPACKET * sizeof(uint8_t));
-  char datagram[20];
-  uint16_t datagram_size = sizeof(datagram);
-  memset(datagram, 0, sizeof(datagram));
-  struct ip *ip_header = (struct ip*) datagram;
-  ip_header->ip_hl = 5;                       /* header length */
-  ip_header->ip_v = 4;                        /* IP version */
-  ip_header->ip_tos = 0;                      /* type of service */
-  ip_header->ip_len = htons(datagram_size);   /* total length */
-  ip_header->ip_id = htons(getpid());              /* IP id */
-  ip_header->ip_off = htons(0);               /* fragment offset field */
-  ip_header->ip_ttl = 64;                     /* time to live */
-  ip_header->ip_p = IPPROTO_ICMP;             /* protocol */
-  ip_header->ip_sum = 0;                      /* checksum */
-  ip_header->ip_src = *src_addr;              /* src ip address */
-  ip_header->ip_dst = *dst_addr;              /* dst ip address */
+  struct ip ip_header;
+  ip_header.ip_hl = 5;                       /* header length */
+  ip_header.ip_v = 4;                        /* IP version */
+  ip_header.ip_tos = 0;                      /* type of service */
+  ip_header.ip_len = htons(IP_HEADER_LENGTH + ICMP_HEADER_LENGTH + icmp_data_length);   /* total length */
+  ip_header.ip_id = htons(0);              /* IP id */
+  ip_header.ip_ttl = 255;                     /* time to live */
+  ip_header.ip_p = IPPROTO_ICMP;             /* protocol */
+  char* test_src_ip = "192.168.0.6";
+  if(inet_pton(AF_INET, test_src_ip, &(ip_header.ip_src))){
+    perror("Error on src ip inet_pton");
+    exit(1);
+  } /* src ip address */
+  ip_header.ip_dst = *dst_addr;              /* dst ip address */
+
+  int* flags = (int*) malloc(4 * sizeof(int));
+  flags[0] = 0;
+  flags[1] = 0;
+  flags[2] = 0;
+  flags[3] = 0;
+  ip_header.ip_off = htons((flags[0] << 15) + (flags[1] << 14) +(flags[2] << 13) + flags[3]); /* fragment offset field */
+  ip_header.ip_sum = 0;                      /* checksum */
+  ip_header.ip_sum = checksum((uint16_t*) &ip_header, IP_HEADER_LENGTH); /* checksum */
 
   // Setup our ICMP header
   struct icmp *icmp_header = (struct icmp*) (ip_header + 1);
