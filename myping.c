@@ -47,8 +47,6 @@ checksum (uint16_t *addr, int len)
   return (answer);
 }
 
-// TODO: Checksum is not correct
-// TODO: Change way that you get source IP
 int main(int argc, char *argv[]) {
 
   // Make sure file is ran with 'sudo'
@@ -65,7 +63,7 @@ int main(int argc, char *argv[]) {
 
   printf("Starting\n\n");
 
-  // Get source IP address
+  // Get source IP address and src hostname
   char src_hostname[32];
   struct hostent *src_hostent; 
   if(gethostname(src_hostname, sizeof(src_hostname)) < 0) {
