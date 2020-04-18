@@ -156,17 +156,18 @@ int main(int argc, char *argv[]) {
   memcpy ((packet + IP_HEADER_LENGTH), &icmp_header, ICMP_HEADER_LENGTH);
 
   // Create our socket and setup our options
-  int one = 1;
+  int on = 1;
   struct sockaddr_in server_addr;
-  memset(&server_addr, 0, sizeof(server_addr));
-  server_addr.sin_addr = *dst_addr;
+  memset(&server_addr, 0, sizeof(struct sockaddr));
   server_addr.sin_family = AF_INET;
+  server_addr.sin_addr = *dst_addr; 
+
   int socket_fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
   if (socket_fd < 0) {
     perror("Error on socket()");
     exit(1);
   }
-  if(setsockopt(socket_fd, IPPROTO_IP, IP_HDRINCL, &one, sizeof(one)) < 0) {
+  if(setsockopt(socket_fd, IPPROTO_IP, IP_HDRINCL, &on, sizeof(on)) < 0) {
     perror("Error on setsockopt()");
     exit(1);
   }
@@ -174,11 +175,11 @@ int main(int argc, char *argv[]) {
   // Send out our data
   int bytes_sent = sendto(
     socket_fd, 
-    datagram, 
-    sizeof(datagram), 
+    packet, 
+    IP_HEADER_LENGTH + ICMP_HEADER_LENGTH + icmp_data_length, 
     0, 
     (struct sockaddr*) &server_addr, // Need to cast sockaddr_in to sockaddr*
-    sizeof(server_addr)
+    sizeof(struct sockaddr)
    );
 
   if (bytes_sent < 0) {
@@ -188,5 +189,11 @@ int main(int argc, char *argv[]) {
     printf("Packet sent. sent: %d\n", bytes_sent);
   }
 
+  close(socket_fd);
+  free(flags);
+  free(data);
+  free(packet);
+
   printf("End\n");
+  return 0;
 }
