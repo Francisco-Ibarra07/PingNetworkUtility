@@ -120,11 +120,7 @@ int main(int argc, char *argv[]) {
   ip_header.ip_id = htons(0);              /* IP id */
   ip_header.ip_ttl = 255;                     /* time to live */
   ip_header.ip_p = IPPROTO_ICMP;             /* protocol */
-  char* test_src_ip = "192.168.0.6";
-  if(inet_pton(AF_INET, test_src_ip, &(ip_header.ip_src))){
-    perror("Error on src ip inet_pton");
-    exit(1);
-  } /* src ip address */
+  ip_header.ip_src = *src_addr;              /* src ip address */
   ip_header.ip_dst = *dst_addr;              /* dst ip address */
 
   int* flags = (int*) malloc(4 * sizeof(int));
