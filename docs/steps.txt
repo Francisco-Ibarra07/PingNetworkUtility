@@ -13,11 +13,14 @@ Steps to complete project:
 	DONE - 2) Send ICMP 8 ('echo request') in an infinite loop to the passed in argument
 		- ICMP packet goes in the 'data' part of a the IP header
 
+	2.5) Print the messages nicely formatted
+
 	3) Read all ICMP 0 ('echo reply')
 	- Calculate Round Trip Time (RTT) from this reply
 	- Print out any packet loss 
+	- Setup a timeout for recvfrom
 
-	3.5) Make echo in an infinite loop
+	DONE - 3.5) Make echo in an infinite loop
 
 	4.0) Clean up code
 		- consistent perror messages
@@ -28,7 +31,7 @@ Steps to complete project:
 	4) Write unit test cases and hand those in too
 
 	5) Do some of the extra credit features?
-		- do signal sigint handler
+		- Do an option to set the ping rate (in seconds)
 		- fancy stuff like read code of response ip packet
 		
 Useful links:
@@ -40,6 +43,9 @@ Useful links:
 
 	Useful reference:
 	- https://stackoverflow.com/questions/9688899/sending-icmp-packets-in-a-c-program
+
+	Useful PPT about icmp and ip:
+	- https://courses.cs.vt.edu/cs4254/fall04/slides/raw_6.pdf
 
 	Coding raw sockets on linux:
 	- https://www.binarytides.com/raw-sockets-c-code-linux/
