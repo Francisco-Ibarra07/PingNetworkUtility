@@ -75,8 +75,6 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
-  printf("Starting\n\n");
-
   // Get source IP address and src hostname
   char src_hostname[32];
   struct hostent *src_hostent; 
@@ -185,7 +183,6 @@ int main(int argc, char *argv[]) {
   long start_time = get_time_ms();
 
   while(PING_LOOP) {
-    // Send out our data
     long packet_start_time = get_time_ms();
 
     int bytes_sent = sendto(
@@ -201,17 +198,17 @@ int main(int argc, char *argv[]) {
       perror("Error on sendto()");
       break;
     }
-    else {
-      int response = recv(socket_fd, packet, sizeof(packet), 0);
-      if (response < 0) {
-        perror("Recv < 0");
-        break;
-      }
-      unsigned long rtt = get_time_ms() - packet_start_time;
-      printf("%d bytes from %s(%s): rtt=%lu ms\n", bytes_sent, user_input, dst_ip_str, rtt);
 
-      sleep(PING_RATE);
+    int bytes_read = recv(socket_fd, packet, sizeof(packet), 0);
+    if (bytes_read < -1) {
+      perror("recv() error");
+      exit(1);
     }
+
+    unsigned long rtt = get_time_ms() - packet_start_time;
+    printf("%d bytes from %s(%s): rtt=%lu ms\n", bytes_read, user_input, dst_ip_str, rtt);
+
+    sleep(PING_RATE);
   }
   printf("\n--- %s ping statistics ---\n", user_input);
   unsigned long timeElapsed = get_time_ms() - start_time;
@@ -222,6 +219,5 @@ int main(int argc, char *argv[]) {
   free(data);
   free(packet);
 
-  printf("End\n");
   return 0;
 }
