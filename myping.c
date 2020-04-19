@@ -174,28 +174,12 @@ int main(int argc, char *argv[]) {
     printf("--- --- ---\n\n");
   }
 
-  // Initialize icmp data to send
-  uint8_t *data;
-  data = (uint8_t*) malloc(IP_MAXPACKET * sizeof(uint8_t));
-  if (data != NULL) {
-    memset(data, 0, IP_MAXPACKET * sizeof(uint8_t));
-  }
-  else {
-    perror("Error on icmp_data malloc()");
-    exit(1);
-  }
-  int icmp_data_length = 4;
-  data[0] = 'p';
-  data[1] = 'i';
-  data[2] = 'n';
-  data[3] = 'g';
-
   // Setup our IP Header
   struct ip ip_header;
   ip_header.ip_hl = 5;                       /* header length */
   ip_header.ip_v = 4;                        /* IP version */
   ip_header.ip_tos = 0;                      /* type of service */
-  ip_header.ip_len = htons(IP_HEADER_LENGTH + ICMP_HEADER_LENGTH + icmp_data_length);   /* total length */
+  ip_header.ip_len = htons(IP_HEADER_LENGTH + ICMP_HEADER_LENGTH);   /* total length */
   ip_header.ip_id = htons(0);              /* IP id */
   ip_header.ip_ttl = TTL;                     /* time to live */
   ip_header.ip_p = IPPROTO_ICMP;             /* protocol */
@@ -216,7 +200,7 @@ int main(int argc, char *argv[]) {
   icmp_header.icmp_type = ICMP_ECHO;
   icmp_header.icmp_code = 0;
   icmp_header.icmp_id = htons(getpid());
-  icmp_header.icmp_seq = 0;
+  icmp_header.icmp_seq = htons(0);
   icmp_header.icmp_cksum = 0;
 
 
@@ -224,10 +208,9 @@ int main(int argc, char *argv[]) {
   uint8_t *packet = (uint8_t*) malloc(IP_MAXPACKET * sizeof(uint8_t));
   memcpy(packet, &ip_header, IP_HEADER_LENGTH); // Copy IP header first
   memcpy((packet + IP_HEADER_LENGTH), &icmp_header, ICMP_HEADER_LENGTH); // Copy ICMP header AFTER IP header
-  memcpy((packet + IP_HEADER_LENGTH + ICMP_HEADER_LENGTH), data, icmp_data_length);
 
   // Calculate ICMP header checksum
-  icmp_header.icmp_cksum = checksum ((uint16_t *) (packet + IP_HEADER_LENGTH), ICMP_HEADER_LENGTH + icmp_data_length);
+  icmp_header.icmp_cksum = checksum ((uint16_t *) (packet + IP_HEADER_LENGTH), ICMP_HEADER_LENGTH);
   memcpy ((packet + IP_HEADER_LENGTH), &icmp_header, ICMP_HEADER_LENGTH);
 
   // Create our socket and setup our options
@@ -272,7 +255,7 @@ int main(int argc, char *argv[]) {
   long loop_start_time = get_time_ms();
   unsigned long loop_total_time = 0;
 
-  int total_sending_bytes = IP_HEADER_LENGTH + ICMP_HEADER_LENGTH + icmp_data_length;
+  int total_sending_bytes = IP_HEADER_LENGTH + ICMP_HEADER_LENGTH;
   printf("PING %s (%s) 0x%x(%dD) bytes of data.\n", user_input, dst_ip_str, total_sending_bytes, total_sending_bytes);
   while(PING_LOOP) {
     long packet_start_time = get_time_ms();
@@ -282,7 +265,7 @@ int main(int argc, char *argv[]) {
     int bytes_sent = sendto(
       socket_fd, 
       packet, 
-      IP_HEADER_LENGTH + ICMP_HEADER_LENGTH + icmp_data_length, 
+      IP_HEADER_LENGTH + ICMP_HEADER_LENGTH, 
       0, 
       (struct sockaddr*) &server_addr, // Need to cast sockaddr_in to sockaddr*
       sizeof(struct sockaddr)
@@ -295,7 +278,10 @@ int main(int argc, char *argv[]) {
 
     int result = select(socket_fd + 1, &socket_set, NULL, NULL, &timeout);
     if (result == -1) {
-      error_msg("Error on select()");
+      perror("Error on select()");
+      packet_errors++;
+      packets_lost++;
+      break;
     }
     else if (result == 0) {
       packets_lost++;
@@ -307,12 +293,13 @@ int main(int argc, char *argv[]) {
       }
     }
     else {
-      char recv_buffer[255];
+      char recv_buffer[50];
       int bytes_read = recv(socket_fd, recv_buffer, sizeof(recv_buffer), 0);
       if (bytes_read < 0) {
         perror("recv() error");
         exit(1);
       }
+      bytes_read -= IP_HEADER_LENGTH;
 
       // TODO: Put if's in a function
       current_rtt = get_time_ms() - packet_start_time;
@@ -329,14 +316,15 @@ int main(int argc, char *argv[]) {
 
       // Read the network layer message (skip to the icmp header portion)
       struct icmp *icmp_reply = (struct icmp*) (recv_buffer + IP_HEADER_LENGTH);
+      int seq = ntohs(icmp_reply->icmp_seq);
       if (icmp_reply->icmp_type == ICMP_ECHOREPLY) {
-        printf("%d bytes from %s (%s): icmp_seq=%d ttl=%d rtt=%lu ms\n", bytes_read, user_input, dst_ip_str, icmp_header.icmp_seq, TTL, current_rtt);
+        printf("%d bytes from %s (%s): icmp_seq=%d ttl=%d rtt=%lu ms\n", bytes_read, user_input, dst_ip_str, seq, TTL, current_rtt);
         packets_recieved++;
       }
       else if (icmp_reply->icmp_type == ICMP_TIME_EXCEEDED) { 
         packet_errors++;
         packets_lost++;
-        printf("From %s (%s): icmp_seq=%d Time to live exceeded (%d hops)\n", user_input, dst_ip_str, icmp_header.icmp_seq, TTL);
+        printf("From %s (%s): icmp_seq=%d Time to live exceeded (%d hops)\n", user_input, dst_ip_str, seq, TTL);
       }
     }
     
@@ -358,7 +346,6 @@ int main(int argc, char *argv[]) {
 
   close(socket_fd);
   free(flags);
-  free(data);
   free(packet);
 
   return 0;
