@@ -1,8 +1,10 @@
 #include <stdio.h>
 #include <netdb.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdbool.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -10,15 +12,16 @@
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
 
+bool PING_LOOP = true;
+
+#define PING_RATE 1 // Seconds
 #define IP_HEADER_LENGTH 20
 #define ICMP_HEADER_LENGTH 8
 
 /* One's Complement checksum algorithm */
 // Computing the internet checksum (RFC 1071).
 // Note that the internet checksum does not preclude collisions.
-uint16_t
-checksum (uint16_t *addr, int len)
-{
+uint16_t checksum (uint16_t *addr, int len) {
   int count = len;
   register uint32_t sum = 0;
   uint16_t answer = 0;
@@ -45,6 +48,10 @@ checksum (uint16_t *addr, int len)
   answer = ~sum;
 
   return (answer);
+}
+
+void signal_handler() {
+  PING_LOOP = false;
 }
 
 int main(int argc, char *argv[]) {
@@ -166,24 +173,36 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
-  // Send out our data
-  int bytes_sent = sendto(
-    socket_fd, 
-    packet, 
-    IP_HEADER_LENGTH + ICMP_HEADER_LENGTH + icmp_data_length, 
-    0, 
-    (struct sockaddr*) &server_addr, // Need to cast sockaddr_in to sockaddr*
-    sizeof(struct sockaddr)
-   );
+  signal(SIGINT, signal_handler);
 
-  if (bytes_sent < 0) {
-    perror("Error on sendto()");
-  }
-  else {
-    printf("Packet sent. sent: %d\n", bytes_sent);
-    puts("Attempting to read");
-    int response = recv(socket_fd, packet, sizeof(packet), 0);
-    printf("Response from recv: %d\n", response);
+  while(PING_LOOP) {
+    // Send out our data
+    puts("Sending ping");
+    int bytes_sent = sendto(
+      socket_fd, 
+      packet, 
+      IP_HEADER_LENGTH + ICMP_HEADER_LENGTH + icmp_data_length, 
+      0, 
+      (struct sockaddr*) &server_addr, // Need to cast sockaddr_in to sockaddr*
+      sizeof(struct sockaddr)
+    );
+
+    if (bytes_sent < 0) {
+      perror("Error on sendto()");
+      break;
+    }
+    else {
+      printf("Packet sent. sent: %d\n", bytes_sent);
+      puts("Attempting to read");
+      int response = recv(socket_fd, packet, sizeof(packet), 0);
+      if (response < 0) {
+        perror("Recv < 0");
+        break;
+      }
+      printf("Response from recv: %d\n", response);
+
+      sleep(PING_RATE);
+    }
   }
 
   close(socket_fd);
