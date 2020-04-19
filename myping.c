@@ -4,9 +4,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <getopt.h>
 #include <stdbool.h>
-#include <arpa/inet.h>
 #include <sys/time.h>
+#include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -15,9 +16,17 @@
 
 bool PING_LOOP = true;
 
-#define PING_RATE 1 // Seconds
 #define IP_HEADER_LENGTH 20
 #define ICMP_HEADER_LENGTH 8
+
+void print_usage(char* cmd) {
+  printf("Usage: sudo %s [-i interval] [-t TTL] destination\n", cmd);
+}
+
+void error_msg(char* msg) {
+  perror(msg);
+  exit(EXIT_FAILURE);
+}
 
 long get_time_ms() {
   struct timeval t;
@@ -63,16 +72,43 @@ void signal_handler() {
 
 int main(int argc, char *argv[]) {
 
-  // Make sure file is ran with 'sudo'
   if (getuid() != 0) {
     perror("This program requires it to be ran as root");
     exit(EXIT_FAILURE);
   }
 
-  // Make sure user inputted a hostname or ip address
-  if (argc != 2) {
-    printf("\nUsage: sudo %s <hostname or ip address>", argv[0]);
+  if (argc < 2) {
+    print_usage(argv[0]);
     exit(1);
+  }
+
+  int opt;
+  float PING_RATE = 1.0;
+  int TTL = 64; 
+
+  while((opt = getopt(argc, argv, "i:t:")) != -1) {
+    switch (opt) {
+      case 'i':
+        PING_RATE = atof(optarg);
+        if (PING_RATE <= 0) {
+          error_msg("interval must be a number greater than 0");
+        }
+        break;
+
+      case 't':
+        TTL = atoi(optarg);
+        break;
+    
+      default:
+        print_usage(argv[0]);
+        exit(1);
+        break;
+    }
+  }
+  char *user_input = argv[optind];
+  if (user_input == NULL) {
+    print_usage(argv[0]);
+    error_msg("destination not found");
   }
 
   // Get source IP address and src hostname
@@ -94,7 +130,6 @@ int main(int argc, char *argv[]) {
   puts("");
 
   // Get destination IP address
-  char *user_input = argv[1];
   struct hostent *dst_hostent = gethostbyname(user_input);
   if (dst_hostent == NULL) {
     perror("Error on gethostbyname()");
