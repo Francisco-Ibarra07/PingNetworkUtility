@@ -21,7 +21,7 @@ bool PING_LOOP = true;
 #define ICMP_HEADER_LENGTH 8
 
 void print_usage(char* cmd) {
-  printf("Usage: sudo %s [-e] [-i interval] [-t TTL] [-W timeout] destination\n", cmd);
+  printf("Usage: sudo %s [-ev] [-i interval] [-t TTL] [-W timeout] destination\n", cmd);
 }
 
 void error_msg(char* msg) {
@@ -88,11 +88,16 @@ int main(int argc, char *argv[]) {
   int TIMEOUT = 5;  // seconds
   float PING_RATE = 1.0;
   bool EXIT_ON_TIMEOUT = false;
+  bool VERBOSE = false;
 
-  while((opt = getopt(argc, argv, "ei:t:W:")) != -1) {
+  while((opt = getopt(argc, argv, "evi:t:W:")) != -1) {
     switch (opt) {
       case 'e': 
         EXIT_ON_TIMEOUT = true;
+        break;
+
+      case 'v': 
+        VERBOSE = true;
         break;
 
       case 'i':
@@ -128,10 +133,6 @@ int main(int argc, char *argv[]) {
     error_msg("destination not found");
   }
 
-  printf("interval: %.2f seconds\n", PING_RATE);
-  printf("timeout: %d seconds\n", TIMEOUT);
-  printf("ttl: %d hops\n", TTL);
-
   // Get source IP address and src hostname
   char src_hostname[32];
   struct hostent *src_hostent; 
@@ -145,10 +146,8 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
   struct in_addr *src_addr = (struct in_addr*) src_hostent->h_addr_list[0];
-  char* src_ip_str = inet_ntoa(*src_addr);
-  printf("Source hostname: %s\n", src_hostname);
-  printf("Source IP address: %s\n", src_ip_str);
-  puts("");
+  char src_ip_str[32];
+  strcpy(src_ip_str, inet_ntoa(*src_addr));
 
   // Get destination IP address
   struct hostent *dst_hostent = gethostbyname(user_input);
@@ -157,9 +156,20 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
   struct in_addr *dst_addr = (struct in_addr*) dst_hostent->h_addr_list[0];
-  char* dst_ip_str = inet_ntoa(*dst_addr); 
-  printf("IP address for host '%s': %s\n", user_input, dst_ip_str);
-  puts("");
+  char dst_ip_str[32];
+  strcpy(dst_ip_str, inet_ntoa(*dst_addr));
+
+  if (VERBOSE) {
+    printf("--- SETTINGS ---\n");
+    printf("ttl: %d hops\n", TTL);
+    printf("timeout: %d seconds\n", TIMEOUT);
+    printf("interval: %.2f seconds\n", PING_RATE);
+    printf("Source hostname: %s\n", src_hostname);
+    printf("Source IP address: %s\n", src_ip_str); // <-- TODO: This one is bugging out for some reason :(
+    printf("Destination hostname: %s\n", user_input);
+    printf("Destination IP address: %s\n", dst_ip_str);
+    printf("--- --- ---\n\n");
+  }
 
   // Initialize icmp data to send
   uint8_t *data;
