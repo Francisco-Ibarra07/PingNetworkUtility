@@ -260,18 +260,20 @@ int main(int argc, char *argv[]) {
   FD_SET(socket_fd, &socket_set);
 
   // Ping Statistics
-  int packets_transmitted = 0;
-  int packets_recieved = 0;
-  int packet_errors = 0;
-  int packets_lost = 0;
-  long current_rtt = 0;
-  long min_rtt = ONE_MILLION;
+  int packets_transmitted = 0; // each packet sent
+  int packets_recieved = 0; // each packet recieved
+  int packet_errors = 0; // ttl timeout or icmp errors
+  int packets_lost = 0; // No replies/timeouts
+  long current_rtt = 0; 
+  long min_rtt = 0;
   long max_rtt = 0;
   float avg_rtt = 0;
   long cumulative_rtt = 0;
   long loop_start_time = get_time_ms();
   unsigned long loop_total_time = 0;
 
+  int total_sending_bytes = IP_HEADER_LENGTH + ICMP_HEADER_LENGTH + icmp_data_length;
+  printf("PING %s (%s) 0x%x(%dD) bytes of data.\n", user_input, dst_ip_str, total_sending_bytes, total_sending_bytes);
   while(PING_LOOP) {
     long packet_start_time = get_time_ms();
     timeout.tv_sec = TIMEOUT; 
@@ -315,10 +317,12 @@ int main(int argc, char *argv[]) {
       if (current_rtt > max_rtt) {
         max_rtt = current_rtt;
       }
-      if (current_rtt < min_rtt) {
+      if (min_rtt == 0) {
         min_rtt = current_rtt;
       }
-      printf("%d bytes from %s(%s): icmp_seq=%d ttl=%d rtt=%lu ms\n", bytes_read, user_input, dst_ip_str, icmp_header.icmp_seq, TTL, current_rtt);
+      else if (current_rtt < min_rtt) {
+        min_rtt = current_rtt;
+      }
 
       // Read the network layer message (skip to the icmp header portion)
       struct icmp *icmp_reply = (struct icmp*) (recv_buffer + IP_HEADER_LENGTH);
@@ -332,9 +336,15 @@ int main(int argc, char *argv[]) {
 
   loop_total_time = get_time_ms() - loop_start_time;
   avg_rtt = (float) cumulative_rtt / (float) packets_transmitted;
+  unsigned int packet_loss_percentage = ((float) packets_lost / (float) packets_transmitted) * 100;
   printf("\n--- %s ping statistics ---\n", user_input);
-  printf("%d packets transmitted, %d recieved, %d%% packet loss, time %lums\n", packets_transmitted, packets_recieved, 10, loop_total_time);
-  printf("rtt min/avg/max = %lu/%.2f/%lu\n", min_rtt, avg_rtt, max_rtt);
+  if (packet_errors > 0) {
+    printf("%d packets transmitted, %d recieved, +%d errors, %d%% packet loss, time %lums\n", packets_transmitted, packets_recieved, packet_errors, packet_loss_percentage, loop_total_time);
+  }
+  else {
+    printf("%d packets transmitted, %d recieved, %d%% packet loss, time %lums\n", packets_transmitted, packets_recieved, packet_loss_percentage, loop_total_time);
+    printf("rtt min/avg/max = %lu/%.2f/%lu ms\n", min_rtt, avg_rtt, max_rtt);
+  }
 
   close(socket_fd);
   free(flags);
