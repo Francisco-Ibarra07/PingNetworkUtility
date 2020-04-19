@@ -85,7 +85,7 @@ int main(int argc, char *argv[]) {
 
   int opt;
   int TTL = 64; 
-  int TIMEOUT = 5;  // seconds
+  int TIMEOUT = 1;  // seconds
   float PING_RATE = 1.0;
   bool EXIT_ON_TIMEOUT = false;
   bool VERBOSE = false;
