@@ -4,35 +4,37 @@ Solution found (combine these two together):
 - https://stackoverflow.com/questions/9688899/sending-icmp-packets-in-a-c-program
 
 
-Solution steps:
-	From link #1
-	- Use hostent getHostByName() to check if host exists
-	- If it does, get info and place it in sockaddr_in variable
-
-	From link #2:
-	- Create a datagram buffer with iphdr and icmp header
-	- use sendto() to send over the data
-
-
 Once done, do the other steps below
 
 Steps to complete project:
 
-	1) Make a C file that accepts a hostname or IP in the first argument
+	DONE - 1) Make a C file that accepts a hostname or IP in the first argument
 
-	2) Send ICMP 8 ('echo request') in an infinite loop to the passed in argument
+	DONE - 2) Send ICMP 8 ('echo request') in an infinite loop to the passed in argument
 		- ICMP packet goes in the 'data' part of a the IP header
 
 	3) Read all ICMP 0 ('echo reply')
 	- Calculate Round Trip Time (RTT) from this reply
 	- Print out any packet loss 
 
+	3.5) Make echo in an infinite loop
+
+	4.0) Clean up code
+		- consistent perror messages
+		- either use puts or printf
+		- split stuff into functions?
+		- rename vars
+		
 	4) Write unit test cases and hand those in too
 
 	5) Do some of the extra credit features?
 		- do signal sigint handler
-
+		- fancy stuff like read code of response ip packet
+		
 Useful links:
+	How to recieve ICMP packets through raw sockets in c 
+	- https://stackoverflow.com/questions/13543554/how-to-receive-icmp-request-in-c-with-raw-sockets?answertab=votes#tab-top
+
 	What is icmp
 	- https://www.comparitech.com/net-admin/what-is-icmp/
 
