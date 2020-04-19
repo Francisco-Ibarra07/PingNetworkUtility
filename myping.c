@@ -298,7 +298,10 @@ int main(int argc, char *argv[]) {
       error_msg("Error on select()");
     }
     else if (result == 0) {
-      printf("TIMEOUT OCCURRED: %d seconds have passed since sending out an echo request to %s(%s)\n", TIMEOUT, user_input, dst_ip_str);
+      packets_lost++;
+      if (VERBOSE) {
+        printf("TIMEOUT OCCURRED: %d seconds have passed since sending out an echo request to %s(%s)\n", TIMEOUT, user_input, dst_ip_str);
+      }
       if (EXIT_ON_TIMEOUT) {
         break;
       }
@@ -326,8 +329,15 @@ int main(int argc, char *argv[]) {
 
       // Read the network layer message (skip to the icmp header portion)
       struct icmp *icmp_reply = (struct icmp*) (recv_buffer + IP_HEADER_LENGTH);
-      printf("Type: %d\n", icmp_reply->icmp_type);
-      printf("Code: %d\n", icmp_reply->icmp_code);
+      if (icmp_reply->icmp_type == ICMP_ECHOREPLY) {
+        printf("%d bytes from %s (%s): icmp_seq=%d ttl=%d rtt=%lu ms\n", bytes_read, user_input, dst_ip_str, icmp_header.icmp_seq, TTL, current_rtt);
+        packets_recieved++;
+      }
+      else if (icmp_reply->icmp_type == ICMP_TIME_EXCEEDED) { 
+        packet_errors++;
+        packets_lost++;
+        printf("From %s (%s): icmp_seq=%d Time to live exceeded (%d hops)\n", user_input, dst_ip_str, icmp_header.icmp_seq, TTL);
+      }
     }
     
     packets_transmitted++;
