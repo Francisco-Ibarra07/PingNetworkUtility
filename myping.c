@@ -164,9 +164,9 @@ int main(int argc, char *argv[]) {
 
   if (VERBOSE) {
     printf("--- SETTINGS ---\n");
-    printf("ttl: %d hops\n", TTL);
-    printf("timeout: %d seconds\n", TIMEOUT);
-    printf("interval: %.2f seconds\n", PING_RATE);
+    printf("ttl: %d hop(s)\n", TTL);
+    printf("timeout: %d second(s)\n", TIMEOUT);
+    printf("interval: %.2f second(s)\n", PING_RATE);
     printf("Source hostname: %s\n", src_hostname);
     printf("Source IP address: %s\n", src_ip_str); // <-- TODO: This one is bugging out for some reason :(
     printf("Destination hostname: %s\n", user_input);
@@ -300,7 +300,7 @@ int main(int argc, char *argv[]) {
     else if (result == 0) {
       packets_lost++;
       if (VERBOSE) {
-        printf("TIMEOUT OCCURRED: %d seconds have passed since sending out an echo request to %s(%s)\n", TIMEOUT, user_input, dst_ip_str);
+        printf("TIMEOUT OCCURRED: %d second(s) have passed since sending out an echo request to %s(%s)\n", TIMEOUT, user_input, dst_ip_str);
       }
       if (EXIT_ON_TIMEOUT) {
         break;
