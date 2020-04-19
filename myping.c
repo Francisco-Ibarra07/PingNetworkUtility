@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <stdbool.h>
 #include <arpa/inet.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -17,6 +18,12 @@ bool PING_LOOP = true;
 #define PING_RATE 1 // Seconds
 #define IP_HEADER_LENGTH 20
 #define ICMP_HEADER_LENGTH 8
+
+long get_time_ms() {
+  struct timeval t;
+  gettimeofday(&t, NULL);
+  return t.tv_sec * 1000 + t.tv_usec / 1000;
+}
 
 /* One's Complement checksum algorithm */
 // Computing the internet checksum (RFC 1071).
@@ -97,7 +104,7 @@ int main(int argc, char *argv[]) {
   }
   struct in_addr *dst_addr = (struct in_addr*) dst_hostent->h_addr_list[0];
   char* dst_ip_str = inet_ntoa(*dst_addr); 
-  printf("IP address for host %s: %s\n", user_input, dst_ip_str);
+  printf("IP address for host '%s': %s\n", user_input, dst_ip_str);
   puts("");
 
   // Initialize icmp data to send
@@ -175,9 +182,12 @@ int main(int argc, char *argv[]) {
 
   signal(SIGINT, signal_handler);
 
+  long start_time = get_time_ms();
+
   while(PING_LOOP) {
     // Send out our data
-    puts("Sending ping");
+    long packet_start_time = get_time_ms();
+
     int bytes_sent = sendto(
       socket_fd, 
       packet, 
@@ -192,18 +202,20 @@ int main(int argc, char *argv[]) {
       break;
     }
     else {
-      printf("Packet sent. sent: %d\n", bytes_sent);
-      puts("Attempting to read");
       int response = recv(socket_fd, packet, sizeof(packet), 0);
       if (response < 0) {
         perror("Recv < 0");
         break;
       }
-      printf("Response from recv: %d\n", response);
+      unsigned long rtt = get_time_ms() - packet_start_time;
+      printf("%d bytes from %s(%s): rtt=%lu ms\n", bytes_sent, user_input, dst_ip_str, rtt);
 
       sleep(PING_RATE);
     }
   }
+  printf("\n--- %s ping statistics ---\n", user_input);
+  unsigned long timeElapsed = get_time_ms() - start_time;
+  printf("Time elapsed: %lums\n", timeElapsed);
 
   close(socket_fd);
   free(flags);
