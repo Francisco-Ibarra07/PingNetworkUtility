@@ -8,22 +8,17 @@ DONE - Add timeout to recvfrom and print out a ping message saying it failed
 DONE - if verbose flag, print out src ip, ttl value, sleep value, etc.
 DONE - add avg/min/max times at the end of ping command
 DONE - Incorporate the arg TTL (rn its not doing anythin)
-P - Increment icmp seq number
+DONE - Detect packet loss 
+DONE - Add option to set TTL and detect TTL timout in recvfrom. Need to read the code of returned icmp
+P - Increment icmp seq number (maybe ip checksum needs to also be recalculated too )
 - fix the 'success' on errno perror exit
 - either exit(1) or exit(EXIT_FAILURE)
 - change 'user_input' to something else
 - Add the -I option that lets a user use a specific interface
-- Detect packet loss 
-P - Add option to set TTL and detect TTL timout in recvfrom. Need to read the code of returned icmp
-		- For this, you need to read the packet sent back and check the code
-		- Notes: you know how i always recieve 8 bytes? Well thats cuz thats the icmp header.
-			Cast it into an (struct icmp) maybe? then try reading the code that way
-
-			solution: The sizeof(packet) was limiting the recv bytes to only 8. Changed it now to 255
-			- Now im able to know icmp code and Type
-			
-			Suggestion:
-				- maybe do like: switch(code) { print stuff depending on the code }
+- Look at ping statistic data types and see if it should be float or unsigned long or uintdefined
+- Show error message when destination is not reachable
+- Show error when host DNE
+- Look up how to handle errors properly in c
 
 Steps to complete project:
 
@@ -32,9 +27,9 @@ Steps to complete project:
 	DONE - 2) Send ICMP 8 ('echo request') in an infinite loop to the passed in argument
 		- ICMP packet goes in the 'data' part of a the IP header
 
-	2.5) Print the messages nicely formatted
+	DONE - 2.5) Print the messages nicely formatted
 
-	3) Read all ICMP 0 ('echo reply')
+	DONE - 3) Read all ICMP 0 ('echo reply')
 		DONE - Calculate Round Trip Time (RTT) from this reply
 	- Print out any packet loss 
 	- Setup a timeout for recvfrom
@@ -47,11 +42,10 @@ Steps to complete project:
 		- split stuff into functions?
 		- rename vars
 		
-	4) Write unit test cases and hand those in too
+	4) Write unit test cases and hand those in too?
 
 	5) Do some of the extra credit features?
-		- Do an option to set the ping rate (in seconds)
-		- fancy stuff like read code of response ip packet
+		DONE - Do an option to set the ping rate (in seconds)
 		
 Useful links:
 	How to recieve ICMP packets through raw sockets in c 
