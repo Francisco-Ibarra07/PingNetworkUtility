@@ -219,8 +219,18 @@ int main(int argc, char *argv[]) {
 
   signal(SIGINT, signal_handler);
 
-  long start_time = get_time_ms();
+  // Timeout stuff
+  int TIMEOUT = 5;  // seconds
+  struct timeval timeout;
+  timeout.tv_sec = TIMEOUT; 
+  timeout.tv_usec = 0;
 
+  // Socket set for select()
+  fd_set socket_set;
+  FD_ZERO(&socket_set);
+  FD_SET(socket_fd, &socket_set);
+
+  long start_time = get_time_ms();
   while(PING_LOOP) {
     long packet_start_time = get_time_ms();
 
@@ -238,17 +248,28 @@ int main(int argc, char *argv[]) {
       break;
     }
 
-    int bytes_read = recv(socket_fd, packet, sizeof(packet), 0);
-    if (bytes_read < -1) {
-      perror("recv() error");
-      exit(1);
+    int result = select(socket_fd + 1, &socket_set, NULL, NULL, &timeout);
+    if (result == -1) {
+      error_msg("Error on select()");
     }
+    else if (result == 0) {
+      printf("Timeout happened!\n");
+      break;
+    }
+    else {
+      int bytes_read = recv(socket_fd, packet, sizeof(packet), 0);
+      if (bytes_read < 0) {
+        perror("recv() error");
+        exit(1);
+      }
 
-    unsigned long rtt = get_time_ms() - packet_start_time;
-    printf("%d bytes from %s(%s): rtt=%lu ms\n", bytes_read, user_input, dst_ip_str, rtt);
+      unsigned long rtt = get_time_ms() - packet_start_time;
+      printf("%d bytes from %s(%s): rtt=%lu ms\n", bytes_read, user_input, dst_ip_str, rtt);
 
-    usleep(PING_RATE * ONE_MILLION);
+      usleep(PING_RATE * ONE_MILLION);
+    }
   }
+
   printf("\n--- %s ping statistics ---\n", user_input);
   unsigned long timeElapsed = get_time_ms() - start_time;
   printf("Time elapsed: %lums\n", timeElapsed);
