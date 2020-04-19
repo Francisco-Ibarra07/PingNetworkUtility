@@ -112,6 +112,9 @@ int main(int argc, char *argv[]) {
         if (TTL <= 0) {
           error_msg("ttl must be a number greater than 0");
         }
+        else if (TTL > 255) {
+          error_msg("ttl cannot be greater than 255");
+        }
         break;
       
       case 'W':
