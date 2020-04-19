@@ -16,6 +16,7 @@
 
 bool PING_LOOP = true;
 
+#define ONE_MILLION 1E6
 #define IP_HEADER_LENGTH 20
 #define ICMP_HEADER_LENGTH 8
 
@@ -110,6 +111,9 @@ int main(int argc, char *argv[]) {
     print_usage(argv[0]);
     error_msg("destination not found");
   }
+
+  printf("interval: %.2f seconds\n", PING_RATE);
+  printf("ttl: %d hops\n", TTL);
 
   // Get source IP address and src hostname
   char src_hostname[32];
@@ -243,7 +247,7 @@ int main(int argc, char *argv[]) {
     unsigned long rtt = get_time_ms() - packet_start_time;
     printf("%d bytes from %s(%s): rtt=%lu ms\n", bytes_read, user_input, dst_ip_str, rtt);
 
-    sleep(PING_RATE);
+    usleep(PING_RATE * ONE_MILLION);
   }
   printf("\n--- %s ping statistics ---\n", user_input);
   unsigned long timeElapsed = get_time_ms() - start_time;
