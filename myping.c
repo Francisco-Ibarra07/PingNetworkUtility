@@ -84,10 +84,11 @@ int main(int argc, char *argv[]) {
   }
 
   int opt;
-  float PING_RATE = 1.0;
   int TTL = 64; 
+  int TIMEOUT = 5;  // seconds
+  float PING_RATE = 1.0;
 
-  while((opt = getopt(argc, argv, "i:t:")) != -1) {
+  while((opt = getopt(argc, argv, "i:t:W:")) != -1) {
     switch (opt) {
       case 'i':
         PING_RATE = atof(optarg);
@@ -98,6 +99,16 @@ int main(int argc, char *argv[]) {
 
       case 't':
         TTL = atoi(optarg);
+        if (TTL <= 0) {
+          error_msg("ttl must be a number greater than 0");
+        }
+        break;
+      
+      case 'W':
+        TIMEOUT = atoi(optarg);
+        if (TIMEOUT <= 0) {
+          error_msg("timeout must be a number greater than 0");
+        }
         break;
     
       default:
@@ -113,6 +124,7 @@ int main(int argc, char *argv[]) {
   }
 
   printf("interval: %.2f seconds\n", PING_RATE);
+  printf("timeout: %d\n seconds", TIMEOUT);
   printf("ttl: %d hops\n", TTL);
 
   // Get source IP address and src hostname
@@ -220,7 +232,6 @@ int main(int argc, char *argv[]) {
   signal(SIGINT, signal_handler);
 
   // Timeout stuff
-  int TIMEOUT = 5;  // seconds
   struct timeval timeout;
   timeout.tv_sec = TIMEOUT; 
   timeout.tv_usec = 0;
