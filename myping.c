@@ -333,8 +333,13 @@ int main(int argc, char *argv[]) {
   }
 
   loop_total_time = get_time_ms() - loop_start_time;
-  avg_rtt = (float) cumulative_rtt / (float) packets_transmitted;
-  unsigned int packet_loss_percentage = ((float) packets_lost / (float) packets_transmitted) * 100;
+  if (packets_recieved == 1) {
+    avg_rtt = min_rtt;
+  }
+  else {
+    avg_rtt = (float) cumulative_rtt / (float) packets_transmitted;
+  }
+  float packet_loss_percentage = ((float) packets_lost / (float) packets_transmitted) * 100;
   printf("\n--- %s ping statistics ---\n", user_input);
   if (packet_errors > 0) {
     printf("%d packets transmitted, %d recieved, +%d errors, %d%% packet loss, time %lums\n", packets_transmitted, packets_recieved, packet_errors, packet_loss_percentage, loop_total_time);
