@@ -104,10 +104,10 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
   int icmp_data_length = 4;
-  data[0] = 'T';
-  data[1] = 'E';
-  data[2] = 'S';
-  data[3] = 'T';
+  data[0] = 'p';
+  data[1] = 'i';
+  data[2] = 'n';
+  data[3] = 'g';
 
   // Setup our IP Header
   struct ip ip_header;
@@ -181,6 +181,9 @@ int main(int argc, char *argv[]) {
   }
   else {
     printf("Packet sent. sent: %d\n", bytes_sent);
+    puts("Attempting to read");
+    int response = recv(socket_fd, packet, sizeof(packet), 0);
+    printf("Response from recv: %d\n", response);
   }
 
   close(socket_fd);
