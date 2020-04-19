@@ -21,7 +21,7 @@ bool PING_LOOP = true;
 #define ICMP_HEADER_LENGTH 8
 
 void print_usage(char* cmd) {
-  printf("Usage: sudo %s [-i interval] [-t TTL] destination\n", cmd);
+  printf("Usage: sudo %s [-e] [-i interval] [-t TTL] [-W timeout] destination\n", cmd);
 }
 
 void error_msg(char* msg) {
@@ -87,9 +87,14 @@ int main(int argc, char *argv[]) {
   int TTL = 64; 
   int TIMEOUT = 5;  // seconds
   float PING_RATE = 1.0;
+  bool EXIT_ON_TIMEOUT = false;
 
-  while((opt = getopt(argc, argv, "i:t:W:")) != -1) {
+  while((opt = getopt(argc, argv, "ei:t:W:")) != -1) {
     switch (opt) {
+      case 'e': 
+        EXIT_ON_TIMEOUT = true;
+        break;
+
       case 'i':
         PING_RATE = atof(optarg);
         if (PING_RATE <= 0) {
@@ -124,7 +129,7 @@ int main(int argc, char *argv[]) {
   }
 
   printf("interval: %.2f seconds\n", PING_RATE);
-  printf("timeout: %d\n seconds", TIMEOUT);
+  printf("timeout: %d seconds\n", TIMEOUT);
   printf("ttl: %d hops\n", TTL);
 
   // Get source IP address and src hostname
@@ -244,6 +249,8 @@ int main(int argc, char *argv[]) {
   long start_time = get_time_ms();
   while(PING_LOOP) {
     long packet_start_time = get_time_ms();
+    timeout.tv_sec = TIMEOUT; 
+    timeout.tv_usec = 0;
 
     int bytes_sent = sendto(
       socket_fd, 
@@ -264,8 +271,10 @@ int main(int argc, char *argv[]) {
       error_msg("Error on select()");
     }
     else if (result == 0) {
-      printf("Timeout happened!\n");
-      break;
+      printf("TIMEOUT OCCURRED: %d seconds have passed since sending out an echo request to %s(%s)\n", TIMEOUT, user_input, dst_ip_str);
+      if (EXIT_ON_TIMEOUT) {
+        break;
+      }
     }
     else {
       int bytes_read = recv(socket_fd, packet, sizeof(packet), 0);
@@ -277,8 +286,9 @@ int main(int argc, char *argv[]) {
       unsigned long rtt = get_time_ms() - packet_start_time;
       printf("%d bytes from %s(%s): rtt=%lu ms\n", bytes_read, user_input, dst_ip_str, rtt);
 
-      usleep(PING_RATE * ONE_MILLION);
     }
+    
+    usleep(PING_RATE * ONE_MILLION);
   }
 
   printf("\n--- %s ping statistics ---\n", user_input);

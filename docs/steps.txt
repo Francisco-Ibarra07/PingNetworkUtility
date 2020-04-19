@@ -3,8 +3,8 @@ DONE - Add option to set ping rate
 DONE - Add argument parsing
 DONE - use usleep instead of sleep()
 DONE - Make timeout value a option arg
-- Add timeout to recvfrom and print out a ping message saying it failed
-- have a 'exit' flag that makes the program exit if there is one packet loss
+DONE - have a 'exit' flag that makes the program exit if there is one packet loss
+DONE - Add timeout to recvfrom and print out a ping message saying it failed
 - Detect packet loss 
 - Incorporate the arg TTL (rn its not doing anythin)
 - Increment icmp seq number
