@@ -1,10 +1,10 @@
-
-Solution found (combine these two together):
-- https://www.cs.rpi.edu/~moorthy/Courses/os98/Pgms/socket.html
-- https://stackoverflow.com/questions/9688899/sending-icmp-packets-in-a-c-program
-
-
-Once done, do the other steps below
+TODO:
+- Add timeout to recvfrom
+- Add argument parsing
+- Detect packet loss 
+- Increment icmp seq number
+- Add option to set ping rate
+- (not priority) Add option to set TTL and detect TTL timout in recvfrom
 
 Steps to complete project:
 
@@ -16,7 +16,7 @@ Steps to complete project:
 	2.5) Print the messages nicely formatted
 
 	3) Read all ICMP 0 ('echo reply')
-	- Calculate Round Trip Time (RTT) from this reply
+		DONE - Calculate Round Trip Time (RTT) from this reply
 	- Print out any packet loss 
 	- Setup a timeout for recvfrom
 
