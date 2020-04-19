@@ -194,7 +194,7 @@ int main(int argc, char *argv[]) {
   ip_header.ip_tos = 0;                      /* type of service */
   ip_header.ip_len = htons(IP_HEADER_LENGTH + ICMP_HEADER_LENGTH + icmp_data_length);   /* total length */
   ip_header.ip_id = htons(0);              /* IP id */
-  ip_header.ip_ttl = 255;                     /* time to live */
+  ip_header.ip_ttl = TTL;                     /* time to live */
   ip_header.ip_p = IPPROTO_ICMP;             /* protocol */
   ip_header.ip_src = *src_addr;              /* src ip address */
   ip_header.ip_dst = *dst_addr;              /* dst ip address */
@@ -256,7 +256,19 @@ int main(int argc, char *argv[]) {
   FD_ZERO(&socket_set);
   FD_SET(socket_fd, &socket_set);
 
-  long start_time = get_time_ms();
+  // Ping Statistics
+  int packets_transmitted = 0;
+  int packets_recieved = 0;
+  int packet_errors = 0;
+  int packets_lost = 0;
+  long current_rtt = 0;
+  long min_rtt = ONE_MILLION;
+  long max_rtt = 0;
+  float avg_rtt = 0;
+  long cumulative_rtt = 0;
+  long loop_start_time = get_time_ms();
+  unsigned long loop_total_time = 0;
+
   while(PING_LOOP) {
     long packet_start_time = get_time_ms();
     timeout.tv_sec = TIMEOUT; 
@@ -287,23 +299,39 @@ int main(int argc, char *argv[]) {
       }
     }
     else {
-      int bytes_read = recv(socket_fd, packet, sizeof(packet), 0);
+      char recv_buffer[255];
+      int bytes_read = recv(socket_fd, recv_buffer, sizeof(recv_buffer), 0);
       if (bytes_read < 0) {
         perror("recv() error");
         exit(1);
       }
 
-      unsigned long rtt = get_time_ms() - packet_start_time;
-      printf("%d bytes from %s(%s): rtt=%lu ms\n", bytes_read, user_input, dst_ip_str, rtt);
+      // TODO: Put if's in a function
+      current_rtt = get_time_ms() - packet_start_time;
+      cumulative_rtt += current_rtt;
+      if (current_rtt > max_rtt) {
+        max_rtt = current_rtt;
+      }
+      if (current_rtt < min_rtt) {
+        min_rtt = current_rtt;
+      }
+      printf("%d bytes from %s(%s): icmp_seq=%d ttl=%d rtt=%lu ms\n", bytes_read, user_input, dst_ip_str, icmp_header.icmp_seq, TTL, current_rtt);
 
+      // Read the network layer message (skip to the icmp header portion)
+      struct icmp *icmp_reply = (struct icmp*) (recv_buffer + IP_HEADER_LENGTH);
+      printf("Type: %d\n", icmp_reply->icmp_type);
+      printf("Code: %d\n", icmp_reply->icmp_code);
     }
     
-    usleep(PING_RATE * ONE_MILLION);
+    packets_transmitted++;
+    usleep((__useconds_t) (PING_RATE * ONE_MILLION));
   }
 
+  loop_total_time = get_time_ms() - loop_start_time;
+  avg_rtt = (float) cumulative_rtt / (float) packets_transmitted;
   printf("\n--- %s ping statistics ---\n", user_input);
-  unsigned long timeElapsed = get_time_ms() - start_time;
-  printf("Time elapsed: %lums\n", timeElapsed);
+  printf("%d packets transmitted, %d recieved, %d%% packet loss, time %lums\n", packets_transmitted, packets_recieved, 10, loop_total_time);
+  printf("rtt min/avg/max = %lu/%.2f/%lu\n", min_rtt, avg_rtt, max_rtt);
 
   close(socket_fd);
   free(flags);

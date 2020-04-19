@@ -6,16 +6,24 @@ DONE - Make timeout value a option arg
 DONE - have a 'exit' flag that makes the program exit if there is one packet loss
 DONE - Add timeout to recvfrom and print out a ping message saying it failed
 DONE - if verbose flag, print out src ip, ttl value, sleep value, etc.
-- Detect packet loss 
-- Incorporate the arg TTL (rn its not doing anythin)
-- Increment icmp seq number
+DONE - add avg/min/max times at the end of ping command
+DONE - Incorporate the arg TTL (rn its not doing anythin)
+P - Increment icmp seq number
 - fix the 'success' on errno perror exit
 - either exit(1) or exit(EXIT_FAILURE)
 - change 'user_input' to something else
 - Add the -I option that lets a user use a specific interface
-- add avg/min/max times at the end of ping command
-- (not priority) Add option to set TTL and detect TTL timout in recvfrom
-	- For this, you need to read the packet sent back and check the code
+- Detect packet loss 
+P - Add option to set TTL and detect TTL timout in recvfrom. Need to read the code of returned icmp
+		- For this, you need to read the packet sent back and check the code
+		- Notes: you know how i always recieve 8 bytes? Well thats cuz thats the icmp header.
+			Cast it into an (struct icmp) maybe? then try reading the code that way
+
+			solution: The sizeof(packet) was limiting the recv bytes to only 8. Changed it now to 255
+			- Now im able to know icmp code and Type
+			
+			Suggestion:
+				- maybe do like: switch(code) { print stuff depending on the code }
 
 Steps to complete project:
 
