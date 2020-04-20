@@ -20,16 +20,29 @@ bool PING_LOOP = true;
 #define IP_HEADER_LENGTH 20
 #define ICMP_HEADER_LENGTH 8
 
+// Holds the options for the ping command
+struct Options {
+  int TTL;
+  int TIMEOUT;
+  bool VERBOSE;
+  bool EXIT_ON_TIMEOUT;
+  char DESTINATION[255];
+  float PING_RATE;
+};
+
+// Prints out usage for the this ping program
 void print_usage(char* cmd) {
   printf("Usage: sudo %s [-ev] [-i interval] [-t TTL] [-W timeout] destination\n", cmd);
 }
 
+// Function used to get time since epoch in milliseconds
 long get_time_ms() {
   struct timeval t;
   gettimeofday(&t, NULL);
   return t.tv_sec * 1000 + t.tv_usec / 1000;
 }
 
+// Function used to calculate the ip and icmp header checksums
 uint16_t checksum (uint16_t *addr, int len) {
   int count = len;
   uint32_t sum = 0;
@@ -52,6 +65,7 @@ uint16_t checksum (uint16_t *addr, int len) {
   return (answer);
 }
 
+// If 'Ctr-C' is pressed, this breaks the infinite loop
 void signal_handler() {
   PING_LOOP = false;
 }
@@ -91,17 +105,8 @@ void createPacket(uint8_t* packet, size_t size, int seq, int TTL,
   memcpy ((packet + IP_HEADER_LENGTH), &icmp_header, ICMP_HEADER_LENGTH);
 }
 
-struct Options {
-  int TTL;
-  int TIMEOUT;
-  bool VERBOSE;
-  bool EXIT_ON_TIMEOUT;
-  char DESTINATION[255];
-  float PING_RATE;
-};
-
+// This function is used to set any flags or options passed in through argv
 void get_options(struct Options* options, int argc, char **argv) {
-  
   int opt;
 
   // Set any flags or options passed in through argv
@@ -188,7 +193,7 @@ int main(int argc, char *argv[]) {
   ping_options.VERBOSE = false;
   ping_options.EXIT_ON_TIMEOUT = false;
 
-  // Override any options passed in through argv
+  // Override default options with any options/flags passed through argv
   get_options(&ping_options, argc, argv);
 
   // Get hostname of this machine
