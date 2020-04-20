@@ -205,9 +205,9 @@ void start_ping(int socket_fd, struct sockaddr_in* server_addr, struct in_addr* 
   // Get the presentation format of the src and dst addresses so
   // they can be used whenever we call printf() (just so it looks nice :p)
   char src_ip_str[32];
-  strcpy(src_ip_str, inet_ntoa(*src_addr));
+  strncpy(src_ip_str, inet_ntoa(*src_addr), sizeof(src_ip_str));
   char dst_ip_str[32];
-  strcpy(dst_ip_str, inet_ntoa(*dst_addr));
+  strncpy(dst_ip_str, inet_ntoa(*dst_addr), sizeof(dst_ip_str));
 
   // This 'timeout' var defines how long select() should wait until
   // it times out.
@@ -381,7 +381,7 @@ int main(int argc, char *argv[]) {
 
   // Convert destination inet address into string for later use
   char dst_ip_str[32];
-  strcpy(dst_ip_str, inet_ntoa(*dst_addr));
+  strncpy(dst_ip_str, inet_ntoa(*dst_addr), sizeof(dst_ip_str));
 
   // Create our raw socket and setup our options
   int on = 1;
