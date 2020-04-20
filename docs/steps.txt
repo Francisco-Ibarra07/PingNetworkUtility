@@ -10,15 +10,16 @@ DONE - add avg/min/max times at the end of ping command
 DONE - Incorporate the arg TTL (rn its not doing anythin)
 DONE - Detect packet loss 
 DONE - Add option to set TTL and detect TTL timout in recvfrom. Need to read the code of returned icmp
-P - Increment icmp seq number (maybe ip checksum needs to also be recalculated too )
-- fix the 'success' on errno perror exit
-- either exit(1) or exit(EXIT_FAILURE)
-- change 'user_input' to something else
-- Add the -I option that lets a user use a specific interface
+DONE - Increment icmp seq number
+DONE - Look up how to handle errors properly in c
+DONE - either exit(1) or exit(EXIT_FAILURE)
+DONE - fix the 'success' on errno perror exit
+DONE - Show error message when destination is not reachable
+DONE - change 'user_input' to something else
+DONE- Show error when host DNE
+DONE - Done use strcp()
 - Look at ping statistic data types and see if it should be float or unsigned long or uintdefined
-- Show error message when destination is not reachable
-- Show error when host DNE
-- Look up how to handle errors properly in c
+- change -e to be exit on error instead of exit on timeout
 
 Steps to complete project:
 
@@ -36,14 +37,12 @@ Steps to complete project:
 
 	DONE - 3.5) Make echo in an infinite loop
 
-	4.0) Clean up code
+	DONE 4) Clean up code
 		- consistent perror messages
 		- either use puts or printf
 		- split stuff into functions?
 		- rename vars
 		
-	4) Write unit test cases and hand those in too?
-
 	5) Do some of the extra credit features?
 		DONE - Do an option to set the ping rate (in seconds)
 		
