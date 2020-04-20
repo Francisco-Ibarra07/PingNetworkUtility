@@ -71,6 +71,49 @@ void signal_handler() {
   PING_LOOP = false;
 }
 
+void createPacket(uint8_t* packet, size_t size, int seq, int TTL, struct in_addr *src_addr, struct in_addr *dst_addr ) {
+
+  // Zero packet
+  memset(packet, 0, size);
+
+  // Setup our IP Header
+  struct ip ip_header;
+  ip_header.ip_hl = 5;                       /* header length */
+  ip_header.ip_v = 4;                        /* IP version */
+  ip_header.ip_tos = 0;                      /* type of service */
+  ip_header.ip_len = htons(IP_HEADER_LENGTH + ICMP_HEADER_LENGTH);   /* total length */
+  ip_header.ip_id = htons(0);              /* IP id */
+  ip_header.ip_ttl = TTL;                     /* time to live */
+  ip_header.ip_p = IPPROTO_ICMP;             /* protocol */
+  ip_header.ip_src = *src_addr;              /* src ip address */
+  ip_header.ip_dst = *dst_addr;              /* dst ip address */
+  int* flags = (int*) malloc(4 * sizeof(int));
+  flags[0] = 0;
+  flags[1] = 0;
+  flags[2] = 0;
+  flags[3] = 0;
+  ip_header.ip_off = htons((flags[0] << 15) + (flags[1] << 14) +(flags[2] << 13) + flags[3]); /* fragment offset field */
+  ip_header.ip_sum = 0; 
+  ip_header.ip_sum = checksum((uint16_t*) &ip_header, IP_HEADER_LENGTH); /* checksum */
+
+  // Setup our ICMP header
+  struct icmp icmp_header;
+  icmp_header.icmp_type = ICMP_ECHO;
+  icmp_header.icmp_code = 0;
+  icmp_header.icmp_id = htons(getpid());
+  icmp_header.icmp_seq = htons(seq);
+  icmp_header.icmp_cksum = 0;
+
+  // Append IP + ICMP headers
+  memcpy(packet, &ip_header, IP_HEADER_LENGTH); // Copy IP header first
+  memcpy((packet + IP_HEADER_LENGTH), &icmp_header, ICMP_HEADER_LENGTH); // Copy ICMP header AFTER IP header
+
+  // Calculate ICMP header checksum
+  icmp_header.icmp_cksum = checksum ((uint16_t *) (packet + IP_HEADER_LENGTH), ICMP_HEADER_LENGTH);
+  memcpy ((packet + IP_HEADER_LENGTH), &icmp_header, ICMP_HEADER_LENGTH);
+  free(flags);
+}
+
 int main(int argc, char *argv[]) {
 
   if (getuid() != 0) {
@@ -148,8 +191,8 @@ int main(int argc, char *argv[]) {
     perror("Error on gethostbyname()");
     exit(1);
   }
-  struct in_addr *src_addr = (struct in_addr*) src_hostent->h_addr_list[0];
   char src_ip_str[32];
+  struct in_addr *src_addr = (struct in_addr*) src_hostent->h_addr_list[0];
   strcpy(src_ip_str, inet_ntoa(*src_addr));
 
   // Get destination IP address
@@ -173,45 +216,6 @@ int main(int argc, char *argv[]) {
     printf("Destination IP address: %s\n", dst_ip_str);
     printf("--- --- ---\n\n");
   }
-
-  // Setup our IP Header
-  struct ip ip_header;
-  ip_header.ip_hl = 5;                       /* header length */
-  ip_header.ip_v = 4;                        /* IP version */
-  ip_header.ip_tos = 0;                      /* type of service */
-  ip_header.ip_len = htons(IP_HEADER_LENGTH + ICMP_HEADER_LENGTH);   /* total length */
-  ip_header.ip_id = htons(0);              /* IP id */
-  ip_header.ip_ttl = TTL;                     /* time to live */
-  ip_header.ip_p = IPPROTO_ICMP;             /* protocol */
-  ip_header.ip_src = *src_addr;              /* src ip address */
-  ip_header.ip_dst = *dst_addr;              /* dst ip address */
-
-  int* flags = (int*) malloc(4 * sizeof(int));
-  flags[0] = 0;
-  flags[1] = 0;
-  flags[2] = 0;
-  flags[3] = 0;
-  ip_header.ip_off = htons((flags[0] << 15) + (flags[1] << 14) +(flags[2] << 13) + flags[3]); /* fragment offset field */
-  ip_header.ip_sum = 0;                      /* checksum */
-  ip_header.ip_sum = checksum((uint16_t*) &ip_header, IP_HEADER_LENGTH); /* checksum */
-
-  // Setup our ICMP header
-  struct icmp icmp_header;
-  icmp_header.icmp_type = ICMP_ECHO;
-  icmp_header.icmp_code = 0;
-  icmp_header.icmp_id = htons(getpid());
-  icmp_header.icmp_seq = htons(0);
-  icmp_header.icmp_cksum = 0;
-
-
-  // Prepare packet to send
-  uint8_t *packet = (uint8_t*) malloc(IP_MAXPACKET * sizeof(uint8_t));
-  memcpy(packet, &ip_header, IP_HEADER_LENGTH); // Copy IP header first
-  memcpy((packet + IP_HEADER_LENGTH), &icmp_header, ICMP_HEADER_LENGTH); // Copy ICMP header AFTER IP header
-
-  // Calculate ICMP header checksum
-  icmp_header.icmp_cksum = checksum ((uint16_t *) (packet + IP_HEADER_LENGTH), ICMP_HEADER_LENGTH);
-  memcpy ((packet + IP_HEADER_LENGTH), &icmp_header, ICMP_HEADER_LENGTH);
 
   // Create our socket and setup our options
   int on = 1;
@@ -255,9 +259,16 @@ int main(int argc, char *argv[]) {
   long loop_start_time = get_time_ms();
   unsigned long loop_total_time = 0;
 
+  // Init packet variables
+  int packet_sequence = 0;
+  uint8_t *packet = (uint8_t*) malloc(IP_MAXPACKET * sizeof(uint8_t));
+  size_t packet_size = sizeof(IP_MAXPACKET * sizeof(uint8_t));
+
   int total_sending_bytes = IP_HEADER_LENGTH + ICMP_HEADER_LENGTH;
   printf("PING %s (%s) 0x%x(%dD) bytes of data.\n", user_input, dst_ip_str, total_sending_bytes, total_sending_bytes);
   while(PING_LOOP) {
+    createPacket(packet, packet_size, packet_sequence, TTL, src_addr, dst_addr);
+
     long packet_start_time = get_time_ms();
     timeout.tv_sec = TIMEOUT; 
     timeout.tv_usec = 0;
@@ -316,19 +327,19 @@ int main(int argc, char *argv[]) {
 
       // Read the network layer message (skip to the icmp header portion)
       struct icmp *icmp_reply = (struct icmp*) (recv_buffer + IP_HEADER_LENGTH);
-      int seq = ntohs(icmp_reply->icmp_seq);
       if (icmp_reply->icmp_type == ICMP_ECHOREPLY) {
-        printf("%d bytes from %s (%s): icmp_seq=%d ttl=%d rtt=%lu ms\n", bytes_read, user_input, dst_ip_str, seq, TTL, current_rtt);
+        printf("%d bytes from %s (%s): icmp_seq=%d ttl=%d rtt=%lu ms\n", bytes_read, user_input, dst_ip_str, packet_sequence, TTL, current_rtt);
         packets_recieved++;
       }
       else if (icmp_reply->icmp_type == ICMP_TIME_EXCEEDED) { 
         packet_errors++;
         packets_lost++;
-        printf("From %s (%s): icmp_seq=%d Time to live exceeded (%d hops)\n", user_input, dst_ip_str, seq, TTL);
+        printf("From %s (%s): icmp_seq=%d Time to live exceeded (%d hops)\n", user_input, dst_ip_str, packet_sequence, TTL);
       }
     }
     
     packets_transmitted++;
+    packet_sequence++;
     usleep((__useconds_t) (PING_RATE * ONE_MILLION));
   }
 
@@ -350,7 +361,6 @@ int main(int argc, char *argv[]) {
   }
 
   close(socket_fd);
-  free(flags);
   free(packet);
 
   return 0;
