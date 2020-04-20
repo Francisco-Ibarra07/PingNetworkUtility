@@ -257,8 +257,9 @@ void start_ping(int socket_fd, struct sockaddr_in* server_addr, struct in_addr* 
       char recv_buffer[50];
       int bytes_read = recv(socket_fd, recv_buffer, sizeof(recv_buffer), 0);
       if (bytes_read < 0) {
-        perror("recv() error");
-        exit(1);
+        perror("recv");
+        pstats->packet_errors++;
+        break;
       }
       bytes_read -= IP_HEADER_LENGTH;
 
@@ -390,12 +391,12 @@ int main(int argc, char *argv[]) {
   server_addr.sin_addr = *dst_addr; 
   int socket_fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
   if (socket_fd < 0) {
-    perror("Error on socket()");
-    exit(1);
+    perror("socket");
+    exit(EXIT_FAILURE);
   }
   if(setsockopt(socket_fd, IPPROTO_IP, IP_HDRINCL, &on, sizeof(on)) < 0) {
-    perror("Error on setsockopt()");
-    exit(1);
+    perror("setsockopt");
+    exit(EXIT_FAILURE);
   }
 
   // If verbose flag was set, print out the options that will be used
