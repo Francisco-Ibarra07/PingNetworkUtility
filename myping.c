@@ -409,6 +409,7 @@ int main(int argc, char *argv[]) {
     printf("TTL: %d hop(s)\n", ping_options.TTL);
     printf("Timeout: %d second(s)\n", ping_options.TIMEOUT);
     printf("Interval: %.2f second(s)\n", ping_options.PING_RATE);
+    printf("Exit on timeout: %s\n", (ping_options.EXIT_ON_TIMEOUT ? "true" : "false"));
     printf("Source hostname: %s\n", src_hostname);
     printf("Source IP address: %s\n", src_ip_str);
     printf("Destination hostname: %s\n", ping_options.DESTINATION);

@@ -1,4 +1,4 @@
-TODO:
+Todo list:
 DONE - Add option to set ping rate
 DONE - Add argument parsing
 DONE - use usleep instead of sleep()
@@ -19,7 +19,6 @@ DONE - change 'user_input' to something else
 DONE- Show error when host DNE
 DONE - Done use strcp()
 DONE - Look at ping statistic data types and see if it should be float or unsigned long or uintdefined
-- change -e to be exit on error instead of exit on timeout
 
 Steps to complete project:
 
