@@ -342,10 +342,10 @@ int main(int argc, char *argv[]) {
   float packet_loss_percentage = ((float) packets_lost / (float) packets_transmitted) * 100;
   printf("\n--- %s ping statistics ---\n", user_input);
   if (packet_errors > 0) {
-    printf("%d packets transmitted, %d recieved, +%d errors, %d%% packet loss, time %lums\n", packets_transmitted, packets_recieved, packet_errors, packet_loss_percentage, loop_total_time);
+    printf("%d packets transmitted, %d recieved, +%d errors, %.0f%% packet loss, time %lums\n", packets_transmitted, packets_recieved, packet_errors, packet_loss_percentage, loop_total_time);
   }
   else {
-    printf("%d packets transmitted, %d recieved, %d%% packet loss, time %lums\n", packets_transmitted, packets_recieved, packet_loss_percentage, loop_total_time);
+    printf("%d packets transmitted, %d recieved, %.0f%% packet loss, time %lums\n", packets_transmitted, packets_recieved, packet_loss_percentage, loop_total_time);
     printf("rtt min/avg/max = %lu/%.2f/%lu ms\n", min_rtt, avg_rtt, max_rtt);
   }
 
