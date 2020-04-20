@@ -82,17 +82,12 @@ void createPacket(uint8_t* packet, size_t size, int seq, int TTL, struct in_addr
   ip_header.ip_v = 4;                        /* IP version */
   ip_header.ip_tos = 0;                      /* type of service */
   ip_header.ip_len = htons(IP_HEADER_LENGTH + ICMP_HEADER_LENGTH);   /* total length */
-  ip_header.ip_id = htons(0);              /* IP id */
-  ip_header.ip_ttl = TTL;                     /* time to live */
+  ip_header.ip_id = htons(0);                /* IP id */
+  ip_header.ip_ttl = TTL;                    /* time to live */
   ip_header.ip_p = IPPROTO_ICMP;             /* protocol */
   ip_header.ip_src = *src_addr;              /* src ip address */
   ip_header.ip_dst = *dst_addr;              /* dst ip address */
-  int* flags = (int*) malloc(4 * sizeof(int));
-  flags[0] = 0;
-  flags[1] = 0;
-  flags[2] = 0;
-  flags[3] = 0;
-  ip_header.ip_off = htons((flags[0] << 15) + (flags[1] << 14) +(flags[2] << 13) + flags[3]); /* fragment offset field */
+  ip_header.ip_off = htons(0);               /* fragment offset field */
   ip_header.ip_sum = 0; 
   ip_header.ip_sum = checksum((uint16_t*) &ip_header, IP_HEADER_LENGTH); /* checksum */
 
@@ -111,7 +106,6 @@ void createPacket(uint8_t* packet, size_t size, int seq, int TTL, struct in_addr
   // Calculate ICMP header checksum
   icmp_header.icmp_cksum = checksum ((uint16_t *) (packet + IP_HEADER_LENGTH), ICMP_HEADER_LENGTH);
   memcpy ((packet + IP_HEADER_LENGTH), &icmp_header, ICMP_HEADER_LENGTH);
-  free(flags);
 }
 
 int main(int argc, char *argv[]) {
