@@ -18,7 +18,7 @@ DONE - Show error message when destination is not reachable
 DONE - change 'user_input' to something else
 DONE- Show error when host DNE
 DONE - Done use strcp()
-- Look at ping statistic data types and see if it should be float or unsigned long or uintdefined
+DONE - Look at ping statistic data types and see if it should be float or unsigned long or uintdefined
 - change -e to be exit on error instead of exit on timeout
 
 Steps to complete project:

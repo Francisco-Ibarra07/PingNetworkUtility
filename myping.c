@@ -32,15 +32,15 @@ struct Options {
 
 // Holds statistics throughout the ping loop
 struct Statistics {
-  int packets_transmitted;
-  int packets_recieved;
-  int packet_errors;
-  int packets_lost;
-  long min_rtt;
-  long max_rtt;
+  unsigned short packets_transmitted;
+  unsigned short packets_recieved;
+  unsigned short packet_errors;
+  unsigned short packets_lost;
+  unsigned long min_rtt;
+  unsigned long max_rtt;
   float avg_rtt;
-  long cumulative_rtt;
-  long loop_start_time;
+  unsigned long cumulative_rtt;
+  unsigned long loop_start_time;
   unsigned long loop_total_time;
 }; 
 
@@ -84,6 +84,9 @@ void signal_handler() {
   PING_LOOP = false;
 }
 
+// Takes in a pointer (packet) and fills the pointer up with the appropriate
+// IP and ICMP header information. Once this function completes, the packet
+// will be formatted correctly in order to be sent through a socket.
 void createPacket(uint8_t* packet, size_t size, int seq, int TTL, 
                   struct in_addr *src_addr, struct in_addr *dst_addr ) 
 {
