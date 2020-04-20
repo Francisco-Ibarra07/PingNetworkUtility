@@ -147,8 +147,8 @@ void get_options(struct Options* options, int argc, char **argv) {
 
       case 't':
         options->TTL = atoi(optarg);
-        if (options->TTL <= 0) {
-          fprintf(stderr, "ttl must be a number greater than 0");
+        if (options->TTL < 0) {
+          fprintf(stderr, "ttl must be a positive value");
           exit(EXIT_FAILURE);
         }
         else if (options->TTL > 255) {
