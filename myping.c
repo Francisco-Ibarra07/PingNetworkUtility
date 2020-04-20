@@ -174,6 +174,7 @@ void get_options(struct Options* options, int argc, char **argv) {
 
 int main(int argc, char *argv[]) {
 
+  // We are using raw sockets so make sure program is ran with 'sudo'
   if (getuid() != 0) {
     fprintf(stderr, "This program requires it to be ran as root\n");
     print_usage(argv[0]);
@@ -242,13 +243,12 @@ int main(int argc, char *argv[]) {
     printf("--- --- ---\n\n");
   }
 
-  // Create our socket and setup our options
+  // Create our raw socket and setup our options
   int on = 1;
   struct sockaddr_in server_addr;
   memset(&server_addr, 0, sizeof(struct sockaddr));
   server_addr.sin_family = AF_INET;
   server_addr.sin_addr = *dst_addr; 
-
   int socket_fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
   if (socket_fd < 0) {
     perror("Error on socket()");
@@ -258,6 +258,11 @@ int main(int argc, char *argv[]) {
     perror("Error on setsockopt()");
     exit(1);
   }
+  
+  // Use a socket set so we can utilize the select function
+  fd_set socket_set;
+  FD_ZERO(&socket_set);
+  FD_SET(socket_fd, &socket_set);
 
   signal(SIGINT, signal_handler);
 
@@ -266,10 +271,6 @@ int main(int argc, char *argv[]) {
   timeout.tv_sec = ping_options.TIMEOUT; 
   timeout.tv_usec = 0;
 
-  // Socket set for select()
-  fd_set socket_set;
-  FD_ZERO(&socket_set);
-  FD_SET(socket_fd, &socket_set);
 
   // Ping Statistics
   int packets_transmitted = 0; // each packet sent
