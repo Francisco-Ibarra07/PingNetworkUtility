@@ -91,6 +91,82 @@ void createPacket(uint8_t* packet, size_t size, int seq, int TTL,
   memcpy ((packet + IP_HEADER_LENGTH), &icmp_header, ICMP_HEADER_LENGTH);
 }
 
+struct Options {
+  int TTL;
+  int TIMEOUT;
+  bool VERBOSE;
+  bool EXIT_ON_TIMEOUT;
+  char DESTINATION[255];
+  float PING_RATE;
+};
+
+void get_options(struct Options* options, int argc, char **argv) {
+  
+  int opt;
+
+  // Set any flags or options passed in through argv
+  while((opt = getopt(argc, argv, "evi:t:W:")) != -1) {
+    switch (opt) {
+      case 'e': 
+        options->EXIT_ON_TIMEOUT = true;
+        break;
+
+      case 'v': 
+        options->VERBOSE = true;
+        break;
+
+      case 'i':
+        options->PING_RATE = atof(optarg);
+        if (options->PING_RATE <= 0) {
+          fprintf(stderr, "interval must be a number greater than 0");
+          exit(EXIT_FAILURE);
+        }
+        break;
+
+      case 't':
+        options->TTL = atoi(optarg);
+        if (options->TTL <= 0) {
+          fprintf(stderr, "ttl must be a number greater than 0");
+          exit(EXIT_FAILURE);
+        }
+        else if (options->TTL > 255) {
+          fprintf(stderr, "ttl cannot be greater than 255");
+          exit(EXIT_FAILURE);
+        }
+        break;
+      
+      case 'W':
+        options->TIMEOUT = atoi(optarg);
+        if (options->TIMEOUT <= 0) {
+          fprintf(stderr, "timeout must be a number greater than 0");
+          exit(EXIT_FAILURE);
+        }
+        break;
+    
+      default:
+        print_usage(argv[0]);
+        exit(EXIT_FAILURE);
+        break;
+    }
+  }
+
+  // Get the destination (it should be the first extra arg)
+  // Make sure it is not NULL and it is not > 255 chars
+  char* destination = argv[optind];
+  if (destination == NULL) {
+    fprintf(stderr, "destination was not supplied");
+    print_usage(argv[0]);
+    exit(EXIT_FAILURE);
+  }
+  else if (strlen(destination) > 255) {
+    fprintf(stderr, "destination name needs to be under 255 characters\n");
+    exit(EXIT_FAILURE);
+  }
+  else {
+    strncpy(options->DESTINATION, destination, strlen(destination));
+  }
+}
+
 int main(int argc, char *argv[]) {
 
   if (getuid() != 0) {
@@ -101,68 +177,19 @@ int main(int argc, char *argv[]) {
 
   if (argc < 2) {
     print_usage(argv[0]);
-    exit(1);
-  }
-
-  int opt;
-  int TTL = 64; 
-  int TIMEOUT = 1;  // seconds
-  float PING_RATE = 1.0;
-  bool EXIT_ON_TIMEOUT = false;
-  bool VERBOSE = false;
-
-  while((opt = getopt(argc, argv, "evi:t:W:")) != -1) {
-    switch (opt) {
-      case 'e': 
-        EXIT_ON_TIMEOUT = true;
-        break;
-
-      case 'v': 
-        VERBOSE = true;
-        break;
-
-      case 'i':
-        PING_RATE = atof(optarg);
-        if (PING_RATE <= 0) {
-          fprintf(stderr, "interval must be a number greater than 0");
-          exit(EXIT_FAILURE);
-        }
-        break;
-
-      case 't':
-        TTL = atoi(optarg);
-        if (TTL <= 0) {
-          fprintf(stderr, "ttl must be a number greater than 0");
-          exit(EXIT_FAILURE);
-        }
-        else if (TTL > 255) {
-          fprintf(stderr, "ttl cannot be greater than 255");
-          exit(EXIT_FAILURE);
-        }
-        break;
-      
-      case 'W':
-        TIMEOUT = atoi(optarg);
-        if (TIMEOUT <= 0) {
-          fprintf(stderr, "timeout must be a number greater than 0");
-          exit(EXIT_FAILURE);
-        }
-        break;
-    
-      default:
-        print_usage(argv[0]);
-        exit(1);
-        break;
-    }
-  }
-
-  // Get the destination
-  char *user_input = argv[optind];
-  if (user_input == NULL) {
-    fprintf(stderr, "destination was not supplied");
-    print_usage(argv[0]);
     exit(EXIT_FAILURE);
   }
+
+  // Set default options
+  struct Options ping_options;
+  ping_options.TTL = 64; 
+  ping_options.TIMEOUT = 1;
+  ping_options.PING_RATE = 1.0;
+  ping_options.VERBOSE = false;
+  ping_options.EXIT_ON_TIMEOUT = false;
+
+  // Override any options passed in through argv
+  get_options(&ping_options, argc, argv);
 
   // Get hostname of this machine
   char src_hostname[255];
@@ -186,9 +213,9 @@ int main(int argc, char *argv[]) {
 
   // Get destination IP address
   struct in_addr *dst_addr;
-  struct hostent *dst_hostent = gethostbyname(user_input);
+  struct hostent *dst_hostent = gethostbyname(ping_options.DESTINATION);
   if (dst_hostent == NULL) {
-    fprintf(stderr, "Destination with name '%s' could not be found\n", user_input);
+    fprintf(stderr, "Destination with name '%s' could not be found\n", ping_options.DESTINATION);
     exit(EXIT_FAILURE);
   }
   dst_addr = (struct in_addr*) dst_hostent->h_addr_list[0];
@@ -198,14 +225,14 @@ int main(int argc, char *argv[]) {
   strcpy(dst_ip_str, inet_ntoa(*dst_addr));
 
   // Print out settings that will be used if verbose flag was set
-  if (VERBOSE) {
+  if (ping_options.VERBOSE) {
     printf("--- SETTINGS ---\n");
-    printf("ttl: %d hop(s)\n", TTL);
-    printf("timeout: %d second(s)\n", TIMEOUT);
-    printf("interval: %.2f second(s)\n", PING_RATE);
+    printf("TTL: %d hop(s)\n", ping_options.TTL);
+    printf("Timeout: %d second(s)\n", ping_options.TIMEOUT);
+    printf("Interval: %.2f second(s)\n", ping_options.PING_RATE);
     printf("Source hostname: %s\n", src_hostname);
     printf("Source IP address: %s\n", src_ip_str);
-    printf("Destination hostname: %s\n", user_input);
+    printf("Destination hostname: %s\n", ping_options.DESTINATION);
     printf("Destination IP address: %s\n", dst_ip_str);
     printf("--- --- ---\n\n");
   }
@@ -231,7 +258,7 @@ int main(int argc, char *argv[]) {
 
   // Timeout stuff
   struct timeval timeout;
-  timeout.tv_sec = TIMEOUT; 
+  timeout.tv_sec = ping_options.TIMEOUT; 
   timeout.tv_usec = 0;
 
   // Socket set for select()
@@ -258,12 +285,12 @@ int main(int argc, char *argv[]) {
   size_t packet_size = sizeof(IP_MAXPACKET * sizeof(uint8_t));
 
   int total_sending_bytes = IP_HEADER_LENGTH + ICMP_HEADER_LENGTH;
-  printf("PING %s (%s) 0x%x(%dD) bytes of data.\n", user_input, dst_ip_str, total_sending_bytes, total_sending_bytes);
+  printf("PING %s (%s) 0x%x(%dD) bytes of data.\n", ping_options.DESTINATION, dst_ip_str, total_sending_bytes, total_sending_bytes);
   while(PING_LOOP) {
-    createPacket(packet, packet_size, packet_sequence, TTL, src_addr, dst_addr);
+    createPacket(packet, packet_size, packet_sequence, ping_options.TTL, src_addr, dst_addr);
 
     long packet_start_time = get_time_ms();
-    timeout.tv_sec = TIMEOUT; 
+    timeout.tv_sec = ping_options.TIMEOUT; 
     timeout.tv_usec = 0;
 
     int bytes_sent = sendto(
@@ -289,10 +316,11 @@ int main(int argc, char *argv[]) {
     }
     else if (result == 0) {
       packets_lost++;
-      if (VERBOSE) {
-        printf("TIMEOUT OCCURRED: %d second(s) have passed since sending out an echo request to %s(%s)\n", TIMEOUT, user_input, dst_ip_str);
+      if (ping_options.VERBOSE) {
+        printf("TIMEOUT: %d second(s) have passed since sending out an echo request to %s(%s)\n", 
+                ping_options.TIMEOUT, ping_options.DESTINATION, dst_ip_str);
       }
-      if (EXIT_ON_TIMEOUT) {
+      if (ping_options.EXIT_ON_TIMEOUT) {
         break;
       }
     }
@@ -321,19 +349,22 @@ int main(int argc, char *argv[]) {
       // Read the network layer message (skip to the icmp header portion)
       struct icmp *icmp_reply = (struct icmp*) (recv_buffer + IP_HEADER_LENGTH);
       if (icmp_reply->icmp_type == ICMP_ECHOREPLY) {
-        printf("%d bytes from %s (%s): icmp_seq=%d ttl=%d rtt=%lu ms\n", bytes_read, user_input, dst_ip_str, packet_sequence, TTL, current_rtt);
+        printf("%d bytes from %s (%s): icmp_seq=%d ttl=%d rtt=%lu ms\n", 
+                bytes_read, ping_options.DESTINATION, dst_ip_str, 
+                packet_sequence, ping_options.TTL, current_rtt);
         packets_recieved++;
       }
       else if (icmp_reply->icmp_type == ICMP_TIME_EXCEEDED) { 
         packet_errors++;
         packets_lost++;
-        printf("From %s (%s): icmp_seq=%d Time to live exceeded (%d hops)\n", user_input, dst_ip_str, packet_sequence, TTL);
+        printf("From %s (%s): icmp_seq=%d Time to live exceeded (%d hops)\n", 
+                ping_options.DESTINATION, dst_ip_str, packet_sequence, ping_options.TTL);
       }
     }
     
     packets_transmitted++;
     packet_sequence++;
-    usleep((__useconds_t) (PING_RATE * ONE_MILLION));
+    usleep((__useconds_t) (ping_options.PING_RATE * ONE_MILLION));
   }
 
   loop_total_time = get_time_ms() - loop_start_time;
@@ -344,9 +375,12 @@ int main(int argc, char *argv[]) {
     avg_rtt = (float) cumulative_rtt / (float) packets_transmitted;
   }
   float packet_loss_percentage = ((float) packets_lost / (float) packets_transmitted) * 100;
-  printf("\n--- %s ping statistics ---\n", user_input);
+
+  printf("\n--- %s ping statistics ---\n", ping_options.DESTINATION);
   if (packet_errors > 0) {
-    printf("%d packets transmitted, %d recieved, +%d errors, %.0f%% packet loss, time %lums\n", packets_transmitted, packets_recieved, packet_errors, packet_loss_percentage, loop_total_time);
+    printf("%d packets transmitted, %d recieved, +%d errors, %.0f%% packet loss, time %lums\n", 
+            packets_transmitted, packets_recieved, packet_errors, 
+            packet_loss_percentage, loop_total_time);
   }
   else {
     printf("%d packets transmitted, %d recieved, %.0f%% packet loss, time %lums\n", packets_transmitted, packets_recieved, packet_loss_percentage, loop_total_time);
