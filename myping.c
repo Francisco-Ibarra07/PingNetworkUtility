@@ -24,46 +24,31 @@ void print_usage(char* cmd) {
   printf("Usage: sudo %s [-ev] [-i interval] [-t TTL] [-W timeout] destination\n", cmd);
 }
 
-void error_msg(char* msg) {
-  perror(msg);
-  exit(EXIT_FAILURE);
-}
-
 long get_time_ms() {
   struct timeval t;
   gettimeofday(&t, NULL);
   return t.tv_sec * 1000 + t.tv_usec / 1000;
 }
 
-/* One's Complement checksum algorithm */
-// Computing the internet checksum (RFC 1071).
-// Note that the internet checksum does not preclude collisions.
 uint16_t checksum (uint16_t *addr, int len) {
   int count = len;
-  register uint32_t sum = 0;
+  uint32_t sum = 0;
   uint16_t answer = 0;
 
-  // Sum up 2-byte values until none or only one byte left.
   while (count > 1) {
     sum += *(addr++);
     count -= 2;
   }
 
-  // Add left-over byte, if any.
   if (count > 0) {
     sum += *(uint8_t *) addr;
   }
 
-  // Fold 32-bit sum into 16 bits; we lose information by doing this,
-  // increasing the chances of a collision.
-  // sum = (lower 16 bits) + (upper 16 bits shifted right 16 bits)
   while (sum >> 16) {
     sum = (sum & 0xffff) + (sum >> 16);
   }
 
-  // Checksum is one's compliment of sum.
   answer = ~sum;
-
   return (answer);
 }
 
@@ -71,25 +56,23 @@ void signal_handler() {
   PING_LOOP = false;
 }
 
-void createPacket(uint8_t* packet, size_t size, int seq, int TTL, struct in_addr *src_addr, struct in_addr *dst_addr ) {
-
-  // Zero packet
-  memset(packet, 0, size);
-
+void createPacket(uint8_t* packet, size_t size, int seq, int TTL, 
+                  struct in_addr *src_addr, struct in_addr *dst_addr ) 
+{
   // Setup our IP Header
   struct ip ip_header;
-  ip_header.ip_hl = 5;                       /* header length */
-  ip_header.ip_v = 4;                        /* IP version */
-  ip_header.ip_tos = 0;                      /* type of service */
-  ip_header.ip_len = htons(IP_HEADER_LENGTH + ICMP_HEADER_LENGTH);   /* total length */
-  ip_header.ip_id = htons(0);                /* IP id */
-  ip_header.ip_ttl = TTL;                    /* time to live */
-  ip_header.ip_p = IPPROTO_ICMP;             /* protocol */
-  ip_header.ip_src = *src_addr;              /* src ip address */
-  ip_header.ip_dst = *dst_addr;              /* dst ip address */
-  ip_header.ip_off = htons(0);               /* fragment offset field */
-  ip_header.ip_sum = 0; 
-  ip_header.ip_sum = checksum((uint16_t*) &ip_header, IP_HEADER_LENGTH); /* checksum */
+  ip_header.ip_hl = 5;
+  ip_header.ip_v = 4;
+  ip_header.ip_tos = 0;
+  ip_header.ip_len = htons(IP_HEADER_LENGTH + ICMP_HEADER_LENGTH);
+  ip_header.ip_id = htons(0);
+  ip_header.ip_ttl = TTL;
+  ip_header.ip_p = IPPROTO_ICMP;
+  ip_header.ip_src = *src_addr;
+  ip_header.ip_dst = *dst_addr;
+  ip_header.ip_off = htons(0);
+  ip_header.ip_sum = 0;
+  ip_header.ip_sum = checksum((uint16_t*) &ip_header, IP_HEADER_LENGTH);
 
   // Setup our ICMP header
   struct icmp icmp_header;
@@ -100,8 +83,8 @@ void createPacket(uint8_t* packet, size_t size, int seq, int TTL, struct in_addr
   icmp_header.icmp_cksum = 0;
 
   // Append IP + ICMP headers
-  memcpy(packet, &ip_header, IP_HEADER_LENGTH); // Copy IP header first
-  memcpy((packet + IP_HEADER_LENGTH), &icmp_header, ICMP_HEADER_LENGTH); // Copy ICMP header AFTER IP header
+  memcpy(packet, &ip_header, IP_HEADER_LENGTH);
+  memcpy((packet + IP_HEADER_LENGTH), &icmp_header, ICMP_HEADER_LENGTH);
 
   // Calculate ICMP header checksum
   icmp_header.icmp_cksum = checksum ((uint16_t *) (packet + IP_HEADER_LENGTH), ICMP_HEADER_LENGTH);
@@ -111,7 +94,8 @@ void createPacket(uint8_t* packet, size_t size, int seq, int TTL, struct in_addr
 int main(int argc, char *argv[]) {
 
   if (getuid() != 0) {
-    perror("This program requires it to be ran as root");
+    fprintf(stderr, "This program requires it to be ran as root\n");
+    print_usage(argv[0]);
     exit(EXIT_FAILURE);
   }
 
@@ -140,24 +124,28 @@ int main(int argc, char *argv[]) {
       case 'i':
         PING_RATE = atof(optarg);
         if (PING_RATE <= 0) {
-          error_msg("interval must be a number greater than 0");
+          fprintf(stderr, "interval must be a number greater than 0");
+          exit(EXIT_FAILURE);
         }
         break;
 
       case 't':
         TTL = atoi(optarg);
         if (TTL <= 0) {
-          error_msg("ttl must be a number greater than 0");
+          fprintf(stderr, "ttl must be a number greater than 0");
+          exit(EXIT_FAILURE);
         }
         else if (TTL > 255) {
-          error_msg("ttl cannot be greater than 255");
+          fprintf(stderr, "ttl cannot be greater than 255");
+          exit(EXIT_FAILURE);
         }
         break;
       
       case 'W':
         TIMEOUT = atoi(optarg);
         if (TIMEOUT <= 0) {
-          error_msg("timeout must be a number greater than 0");
+          fprintf(stderr, "timeout must be a number greater than 0");
+          exit(EXIT_FAILURE);
         }
         break;
     
@@ -167,45 +155,56 @@ int main(int argc, char *argv[]) {
         break;
     }
   }
+
+  // Get the destination
   char *user_input = argv[optind];
   if (user_input == NULL) {
+    fprintf(stderr, "destination was not supplied");
     print_usage(argv[0]);
-    error_msg("destination not found");
+    exit(EXIT_FAILURE);
   }
 
-  // Get source IP address and src hostname
-  char src_hostname[32];
-  struct hostent *src_hostent; 
+  // Get hostname of this machine
+  char src_hostname[255];
   if(gethostname(src_hostname, sizeof(src_hostname)) < 0) {
-    perror("Error on gethostname()");
-    exit(1);
+    fprintf(stderr, "Hostname of this machine could not be determined\n");
+    exit(EXIT_FAILURE);
   }
-  src_hostent = gethostbyname(src_hostname);
+
+  // Get source IP address
+  struct in_addr *src_addr;
+  struct hostent *src_hostent = gethostbyname(src_hostname);
   if (src_hostent == NULL) {
-    perror("Error on gethostbyname()");
-    exit(1);
+    fprintf(stderr, "Source IP address could not be found\n");
+    exit(EXIT_FAILURE);
   }
+  src_addr = (struct in_addr*) src_hostent->h_addr_list[0];
+
+  // Convert source inet address into string for later use
   char src_ip_str[32];
-  struct in_addr *src_addr = (struct in_addr*) src_hostent->h_addr_list[0];
-  strcpy(src_ip_str, inet_ntoa(*src_addr));
+  strncpy(src_ip_str, inet_ntoa(*src_addr), sizeof(src_ip_str));
 
   // Get destination IP address
+  struct in_addr *dst_addr;
   struct hostent *dst_hostent = gethostbyname(user_input);
   if (dst_hostent == NULL) {
-    perror("Error on gethostbyname()");
-    exit(1);
+    fprintf(stderr, "Destination with name '%s' could not be found\n", user_input);
+    exit(EXIT_FAILURE);
   }
-  struct in_addr *dst_addr = (struct in_addr*) dst_hostent->h_addr_list[0];
+  dst_addr = (struct in_addr*) dst_hostent->h_addr_list[0];
+
+  // Convert destination inet address into string for later use
   char dst_ip_str[32];
   strcpy(dst_ip_str, inet_ntoa(*dst_addr));
 
+  // Print out settings that will be used if verbose flag was set
   if (VERBOSE) {
     printf("--- SETTINGS ---\n");
     printf("ttl: %d hop(s)\n", TTL);
     printf("timeout: %d second(s)\n", TIMEOUT);
     printf("interval: %.2f second(s)\n", PING_RATE);
     printf("Source hostname: %s\n", src_hostname);
-    printf("Source IP address: %s\n", src_ip_str); // <-- TODO: This one is bugging out for some reason :(
+    printf("Source IP address: %s\n", src_ip_str);
     printf("Destination hostname: %s\n", user_input);
     printf("Destination IP address: %s\n", dst_ip_str);
     printf("--- --- ---\n\n");
