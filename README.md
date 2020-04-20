@@ -1,6 +1,8 @@
 # Ping CLI Application
 
 ## 🚀 Getting Started
+Note:
+This C application was built on a Linux machine running x86_64 Ubuntu 18.04.1. Some of the libraries used in this application might not port over to MacOS.
 
 To compile and run do:
 ```
