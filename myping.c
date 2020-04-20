@@ -30,6 +30,20 @@ struct Options {
   float PING_RATE;
 };
 
+// Holds statistics throughout the ping loop
+struct Statistics {
+  int packets_transmitted;
+  int packets_recieved;
+  int packet_errors;
+  int packets_lost;
+  long min_rtt;
+  long max_rtt;
+  float avg_rtt;
+  long cumulative_rtt;
+  long loop_start_time;
+  unsigned long loop_total_time;
+}; 
+
 // Prints out usage for the this ping program
 void print_usage(char* cmd) {
   printf("Usage: sudo %s [-ev] [-i interval] [-t TTL] [-W timeout] destination\n", cmd);
@@ -172,6 +186,144 @@ void get_options(struct Options* options, int argc, char **argv) {
   }
 }
 
+void start_ping(int socket_fd, struct sockaddr_in* server_addr, struct in_addr* src_addr, 
+                struct in_addr* dst_addr, struct Statistics* pstats, struct Options* opts) 
+{
+  // Allocate some memory so we can store our packet
+  uint8_t *packet = (uint8_t*) malloc(IP_MAXPACKET * sizeof(uint8_t));
+  size_t packet_size = sizeof(IP_MAXPACKET * sizeof(uint8_t));
+  int packet_length = IP_HEADER_LENGTH + ICMP_HEADER_LENGTH;
+  int packet_sequence = 0;
+  
+  // Use a socket set so we can utilize the select function.
+  // The select() function will notify us when our socket has data
+  // available to be read.
+  fd_set socket_set;
+  FD_ZERO(&socket_set);
+  FD_SET(socket_fd, &socket_set);
+
+  // Get the presentation format of the src and dst addresses so
+  // they can be used whenever we call printf() (just so it looks nice :p)
+  char src_ip_str[32];
+  strcpy(src_ip_str, inet_ntoa(*src_addr));
+  char dst_ip_str[32];
+  strcpy(dst_ip_str, inet_ntoa(*dst_addr));
+
+  // This 'timeout' var defines how long select() should wait until
+  // it times out.
+  struct timeval timeout;
+
+  printf("PING %s (%s) 0x%x(%dD) bytes of data.\n", 
+          opts->DESTINATION, dst_ip_str, packet_length, packet_length);
+  
+  // Begin the ping loop
+  pstats->loop_start_time = get_time_ms();
+  while(PING_LOOP) {
+
+    // Always set our timeouts before each new packet
+    timeout.tv_sec = opts->TIMEOUT; 
+    timeout.tv_usec = 0;
+
+    // Use this function to initialize a packet with an IP and ICMP header
+    createPacket(packet, packet_size, packet_sequence, opts->TTL, src_addr, dst_addr);
+
+    long packet_sent_time = get_time_ms();
+
+    // Send our packet to the destination address
+    int bytes_sent = sendto(socket_fd, packet, packet_length, 0,
+                            (struct sockaddr*) server_addr, sizeof(struct sockaddr));
+    if (bytes_sent < 0) {
+      perror("sendto");
+      pstats->packet_errors++;
+      break;
+    }
+
+    int res = select(socket_fd + 1, &socket_set, NULL, NULL, &timeout);
+    // Error with select() occurred
+    if (res == -1) {
+      perror("select");
+      pstats->packet_errors++;
+      pstats->packets_lost++;
+      break;
+    }
+    // Timeout occurred
+    else if (res == 0) {
+      pstats->packets_lost++;
+      printf("TIMEOUT: %d second(s) have passed since sending out an echo request to %s(%s)\n", 
+              opts->TIMEOUT, opts->DESTINATION, dst_ip_str);
+    }
+    // ICMP message recieved
+    else {
+      char recv_buffer[50];
+      int bytes_read = recv(socket_fd, recv_buffer, sizeof(recv_buffer), 0);
+      if (bytes_read < 0) {
+        perror("recv() error");
+        exit(1);
+      }
+      bytes_read -= IP_HEADER_LENGTH;
+
+      long current_rtt = get_time_ms() - packet_sent_time;
+      pstats->cumulative_rtt += current_rtt;
+      if (current_rtt > pstats->max_rtt) {
+        pstats->max_rtt = current_rtt;
+      }
+      if (pstats->min_rtt == 0) {
+        pstats->min_rtt = current_rtt;
+      }
+      else if (current_rtt < pstats->min_rtt) {
+        pstats->min_rtt = current_rtt;
+      }
+
+      // Read the network layer message (skip to the icmp header portion)
+      struct icmp *icmp_reply = (struct icmp*) (recv_buffer + IP_HEADER_LENGTH);
+      if (icmp_reply->icmp_type == ICMP_ECHOREPLY) {
+        printf("%d bytes from %s (%s): icmp_seq=%d ttl=%d rtt=%lu ms\n", 
+                bytes_read, opts->DESTINATION, dst_ip_str, 
+                packet_sequence, opts->TTL, current_rtt);
+
+        pstats->packets_recieved++;
+      }
+      else if (icmp_reply->icmp_type == ICMP_TIME_EXCEEDED) { 
+        pstats->packet_errors++;
+        pstats->packets_lost++;
+        printf("From %s (%s): icmp_seq=%d Time to live exceeded (%d hops)\n", 
+                opts->DESTINATION, dst_ip_str, packet_sequence, opts->TTL);
+      }
+    }
+    
+    pstats->packets_transmitted++;
+    packet_sequence++;
+    usleep((__useconds_t) (opts->PING_RATE * ONE_MILLION));
+  } // End of while()
+
+  pstats->loop_total_time = get_time_ms() - pstats->loop_start_time;
+  free(packet);
+}
+
+void print_ping_stats(struct Statistics* pstats) {
+
+  if (pstats->packets_recieved == 1) {
+    pstats->avg_rtt = pstats->min_rtt;
+  }
+  else {
+    pstats->avg_rtt = (float) pstats->cumulative_rtt / (float) pstats->packets_transmitted;
+  }
+  float packet_loss_percentage = ((float) pstats->packets_lost / (float) pstats->packets_transmitted) * 100;
+
+  if (pstats->packet_errors > 0) {
+    printf("%d packets transmitted, %d recieved, +%d errors, %.0f%% packet loss, time %lums\n", 
+            pstats->packets_transmitted, pstats->packets_recieved, pstats->packet_errors, 
+            packet_loss_percentage, pstats->loop_total_time);
+  }
+  else {
+    printf("%d packets transmitted, %d recieved, %.0f%% packet loss, time %lums\n", 
+            pstats->packets_transmitted, pstats->packets_recieved, packet_loss_percentage, 
+            pstats->loop_total_time);
+
+    printf("rtt min/avg/max = %lu/%.2f/%lu ms\n", pstats->min_rtt, pstats->avg_rtt, pstats->max_rtt);
+  }
+}
+
 int main(int argc, char *argv[]) {
 
   // We are using raw sockets so make sure program is ran with 'sudo'
@@ -230,19 +382,6 @@ int main(int argc, char *argv[]) {
   char dst_ip_str[32];
   strcpy(dst_ip_str, inet_ntoa(*dst_addr));
 
-  // Print out settings that will be used if verbose flag was set
-  if (ping_options.VERBOSE) {
-    printf("--- SETTINGS ---\n");
-    printf("TTL: %d hop(s)\n", ping_options.TTL);
-    printf("Timeout: %d second(s)\n", ping_options.TIMEOUT);
-    printf("Interval: %.2f second(s)\n", ping_options.PING_RATE);
-    printf("Source hostname: %s\n", src_hostname);
-    printf("Source IP address: %s\n", src_ip_str);
-    printf("Destination hostname: %s\n", ping_options.DESTINATION);
-    printf("Destination IP address: %s\n", dst_ip_str);
-    printf("--- --- ---\n\n");
-  }
-
   // Create our raw socket and setup our options
   int on = 1;
   struct sockaddr_in server_addr;
@@ -258,143 +397,46 @@ int main(int argc, char *argv[]) {
     perror("Error on setsockopt()");
     exit(1);
   }
-  
-  // Use a socket set so we can utilize the select function
-  fd_set socket_set;
-  FD_ZERO(&socket_set);
-  FD_SET(socket_fd, &socket_set);
 
+  // If verbose flag was set, print out the options that will be used
+  // when the ping starts
+  if (ping_options.VERBOSE) {
+    printf("--- SETTINGS ---\n");
+    printf("TTL: %d hop(s)\n", ping_options.TTL);
+    printf("Timeout: %d second(s)\n", ping_options.TIMEOUT);
+    printf("Interval: %.2f second(s)\n", ping_options.PING_RATE);
+    printf("Source hostname: %s\n", src_hostname);
+    printf("Source IP address: %s\n", src_ip_str);
+    printf("Destination hostname: %s\n", ping_options.DESTINATION);
+    printf("Destination IP address: %s\n", dst_ip_str);
+    printf("--- --- ---\n\n");
+  }
+
+  // Create a Statistics struct that will contain all of the ping 
+  // statistics once the pinging is finished
+  struct Statistics pstats;
+  pstats.packets_transmitted = 0;
+  pstats.packets_recieved = 0;
+  pstats.packet_errors = 0;
+  pstats.packets_lost = 0;
+  pstats.min_rtt = 0;
+  pstats.max_rtt = 0;
+  pstats.avg_rtt = 0.0;
+  pstats.cumulative_rtt = 0;
+  pstats.loop_start_time = 0;
+  pstats.loop_total_time = 0;
+
+  // Create a SIGINT handler to end the infinite pinging loop
   signal(SIGINT, signal_handler);
 
-  // Timeout stuff
-  struct timeval timeout;
-  timeout.tv_sec = ping_options.TIMEOUT; 
-  timeout.tv_usec = 0;
+  // Start the infinite ping (until there is an interrupt :p)
+  start_ping(socket_fd, &server_addr, src_addr, dst_addr, &pstats, &ping_options);
 
-
-  // Ping Statistics
-  int packets_transmitted = 0; // each packet sent
-  int packets_recieved = 0; // each packet recieved
-  int packet_errors = 0; // ttl timeout or icmp errors
-  int packets_lost = 0; // No replies/timeouts
-  long current_rtt = 0; 
-  long min_rtt = 0;
-  long max_rtt = 0;
-  float avg_rtt = 0;
-  long cumulative_rtt = 0;
-  long loop_start_time = get_time_ms();
-  unsigned long loop_total_time = 0;
-
-  // Init packet variables
-  int packet_sequence = 0;
-  uint8_t *packet = (uint8_t*) malloc(IP_MAXPACKET * sizeof(uint8_t));
-  size_t packet_size = sizeof(IP_MAXPACKET * sizeof(uint8_t));
-
-  int total_sending_bytes = IP_HEADER_LENGTH + ICMP_HEADER_LENGTH;
-  printf("PING %s (%s) 0x%x(%dD) bytes of data.\n", ping_options.DESTINATION, dst_ip_str, total_sending_bytes, total_sending_bytes);
-  while(PING_LOOP) {
-    createPacket(packet, packet_size, packet_sequence, ping_options.TTL, src_addr, dst_addr);
-
-    long packet_start_time = get_time_ms();
-    timeout.tv_sec = ping_options.TIMEOUT; 
-    timeout.tv_usec = 0;
-
-    int bytes_sent = sendto(
-      socket_fd, 
-      packet, 
-      IP_HEADER_LENGTH + ICMP_HEADER_LENGTH, 
-      0, 
-      (struct sockaddr*) &server_addr, // Need to cast sockaddr_in to sockaddr*
-      sizeof(struct sockaddr)
-    );
-
-    if (bytes_sent < 0) {
-      perror("Error on sendto()");
-      break;
-    }
-
-    int result = select(socket_fd + 1, &socket_set, NULL, NULL, &timeout);
-    if (result == -1) {
-      perror("Error on select()");
-      packet_errors++;
-      packets_lost++;
-      break;
-    }
-    else if (result == 0) {
-      packets_lost++;
-      if (ping_options.VERBOSE) {
-        printf("TIMEOUT: %d second(s) have passed since sending out an echo request to %s(%s)\n", 
-                ping_options.TIMEOUT, ping_options.DESTINATION, dst_ip_str);
-      }
-      if (ping_options.EXIT_ON_TIMEOUT) {
-        break;
-      }
-    }
-    else {
-      char recv_buffer[50];
-      int bytes_read = recv(socket_fd, recv_buffer, sizeof(recv_buffer), 0);
-      if (bytes_read < 0) {
-        perror("recv() error");
-        exit(1);
-      }
-      bytes_read -= IP_HEADER_LENGTH;
-
-      // TODO: Put if's in a function
-      current_rtt = get_time_ms() - packet_start_time;
-      cumulative_rtt += current_rtt;
-      if (current_rtt > max_rtt) {
-        max_rtt = current_rtt;
-      }
-      if (min_rtt == 0) {
-        min_rtt = current_rtt;
-      }
-      else if (current_rtt < min_rtt) {
-        min_rtt = current_rtt;
-      }
-
-      // Read the network layer message (skip to the icmp header portion)
-      struct icmp *icmp_reply = (struct icmp*) (recv_buffer + IP_HEADER_LENGTH);
-      if (icmp_reply->icmp_type == ICMP_ECHOREPLY) {
-        printf("%d bytes from %s (%s): icmp_seq=%d ttl=%d rtt=%lu ms\n", 
-                bytes_read, ping_options.DESTINATION, dst_ip_str, 
-                packet_sequence, ping_options.TTL, current_rtt);
-        packets_recieved++;
-      }
-      else if (icmp_reply->icmp_type == ICMP_TIME_EXCEEDED) { 
-        packet_errors++;
-        packets_lost++;
-        printf("From %s (%s): icmp_seq=%d Time to live exceeded (%d hops)\n", 
-                ping_options.DESTINATION, dst_ip_str, packet_sequence, ping_options.TTL);
-      }
-    }
-    
-    packets_transmitted++;
-    packet_sequence++;
-    usleep((__useconds_t) (ping_options.PING_RATE * ONE_MILLION));
-  }
-
-  loop_total_time = get_time_ms() - loop_start_time;
-  if (packets_recieved == 1) {
-    avg_rtt = min_rtt;
-  }
-  else {
-    avg_rtt = (float) cumulative_rtt / (float) packets_transmitted;
-  }
-  float packet_loss_percentage = ((float) packets_lost / (float) packets_transmitted) * 100;
-
+  // Print out statistics
   printf("\n--- %s ping statistics ---\n", ping_options.DESTINATION);
-  if (packet_errors > 0) {
-    printf("%d packets transmitted, %d recieved, +%d errors, %.0f%% packet loss, time %lums\n", 
-            packets_transmitted, packets_recieved, packet_errors, 
-            packet_loss_percentage, loop_total_time);
-  }
-  else {
-    printf("%d packets transmitted, %d recieved, %.0f%% packet loss, time %lums\n", packets_transmitted, packets_recieved, packet_loss_percentage, loop_total_time);
-    printf("rtt min/avg/max = %lu/%.2f/%lu ms\n", min_rtt, avg_rtt, max_rtt);
-  }
+  print_ping_stats(&pstats);
 
   close(socket_fd);
-  free(packet);
 
   return 0;
 }
